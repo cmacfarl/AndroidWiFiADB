@@ -10,13 +10,12 @@ plugins {
 
 apply plugin: 'org.jetbrains.intellij'
 apply plugin: 'java'
-apply plugin: 'checkstyle'
 apply plugin: 'jacoco'
 
-group 'com.github.pedrovgs'
-version '2.5-SNAPSHOT'
+group 'org.firstinspires.ftc.plugins'
+// version '0.0.40' // gets added to the file name
 
-sourceCompatibility = 1.6
+sourceCompatibility = 1.8
 
 repositories {
   mavenCentral()
@@ -24,7 +23,7 @@ repositories {
 
 intellij {
   version '14.1.5'
-  pluginName 'AndroidWiFiADB'
+  pluginName 'FtcAndroidStudioPlugin'
   plugins 'android'
   updateSinceUntilBuild false
 }
@@ -34,11 +33,3 @@ dependencies {
   compile 'org.mockito:mockito-all:1.10.19'
 }
 
-task checkstyle(type: Checkstyle) {
-  configFile file("${project.rootDir}/config/checkstyle/checkstyle.xml")
-  source 'src'
-  include '**/*.java'
-  exclude '**/gen/**'
-
-  classpath = files()
-}

@@ -21,9 +21,13 @@ import com.intellij.openapi.project.Project;
 import java.io.File;
 import java.util.Collection;
 import java.util.List;
+
+import org.firstinspires.ftc.plugins.androidstudio.EventLog;
 import org.jetbrains.android.sdk.AndroidSdkUtils;
 
 public class ADB {
+
+  public static final String TAG = "ADB";
 
   private static final String TCPIP_PORT = "5555";
   private final CommandLine commandLine;
@@ -111,7 +115,9 @@ public class ADB {
 
   private String getAdbPath() {
     String adbPath = "";
+    EventLog.ii(TAG, "calling AndroidSdkUtils.getAdb()");
     File adbFile = AndroidSdkUtils.getAdb(project);
+    EventLog.ii(TAG, "called AndroidSdkUtils.getAdb() result=%s", adbFile);
     if (adbFile != null) {
       adbPath = adbFile.getAbsolutePath();
     }

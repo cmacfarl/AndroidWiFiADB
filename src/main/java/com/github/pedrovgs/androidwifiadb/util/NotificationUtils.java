@@ -21,10 +21,11 @@ import com.intellij.notification.NotificationGroup;
 import com.intellij.notification.NotificationType;
 import com.intellij.notification.Notifications;
 import com.intellij.openapi.application.ApplicationManager;
+import org.firstinspires.ftc.plugins.androidstudio.Configuration;
 
 public class NotificationUtils {
 
-  private static final String ANDROID_WIFI_ADB_TITLE = "Android WiFi ADB";
+  private static final String ANDROID_WIFI_ADB_TITLE = Configuration.PROJECT_NAME;
   private static final NotificationGroup NOTIFICATION_GROUP =
       NotificationGroup.balloonGroup(ANDROID_WIFI_ADB_TITLE);
 

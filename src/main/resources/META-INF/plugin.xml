@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<idea-plugin version="2">
-  <id>com.github.pedrovgs.androidwifiadb</id>
-  <name>Android WiFi ADB</name>
-  <version>2.5-SNAPSHOT</version>
+<idea-plugin>
+  <id>org.firstinspires.ftc.plugins.androidstudio</id>
+  <name>FTC Android Studio plugin</name>
+  <version>0.0.41</version>
   <vendor email="pedrovicente.gomez at gmail dot com" url="http://www.github.com/pedrovgs">
     Pedro Vicente Gomez Sanchez
   </vendor>
@@ -17,6 +17,7 @@
   </description>
 
   <change-notes><![CDATA[
+      0.0.41: Begin migration
       2.4: Generate the plugin binary using Java 1.6 instead of Java 1.8.<br>
       2.3: Update the main action configuration to be shown in the NavBarToolBar and also in the MainToolBar if the first on is disabled.<br>
       2.2: Update error message shown when the device is not properly connected.<br>
@@ -39,6 +40,7 @@
               anchor="right"
               factoryClass="com.github.pedrovgs.androidwifiadb.window.AndroidWiFiADBWindow">
       </toolWindow>
+
   </extensions>
 
   <application-components>
@@ -46,7 +48,10 @@
   </application-components>
 
   <project-components>
-
+    <component>
+      <interface-class>org.firstinspires.ftc.plugins.androidstudio.FtcProjectComponent</interface-class>
+      <implementation-class>org.firstinspires.ftc.plugins.androidstudio.FtcProjectComponentImpl</implementation-class>
+    </component>
   </project-components>
 
   <depends>org.jetbrains.android</depends>
@@ -64,6 +69,12 @@
       <add-to-group group-id="NavBarToolBar" anchor="first"/>
     </action>
 
+    <action class="org.firstinspires.ftc.plugins.androidstudio.HelloAction" id="FtcSayHello" text="FTC Android Plugin Hello">
+      <add-to-group group-id="ToolsMenu"/>
+      <add-to-group group-id="WelcomeScreen.QuickStart"/>
+    </action>
+
   </actions>
+
 
 </idea-plugin>
