@@ -1,9 +1,12 @@
-package org.firstinspires.ftc.plugins.androidstudio;
+package org.firstinspires.ftc.plugins.androidstudio.ui;
 
 import com.intellij.openapi.components.PersistentStateComponent;
 import com.intellij.openapi.components.State;
 import com.intellij.openapi.components.Storage;
 import com.intellij.openapi.project.Project;
+import org.firstinspires.ftc.plugins.androidstudio.adb.AdbForProject;
+import org.firstinspires.ftc.plugins.androidstudio.Configuration;
+import org.firstinspires.ftc.plugins.androidstudio.util.EventLog;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -22,7 +25,7 @@ public class FtcProjectComponentImpl implements FtcProjectComponent, PersistentS
 
     protected final Project project;
     protected State state;
-    protected AdbClient adbClient;
+    protected AdbForProject adbForProject;
 
     public static class State
         {
@@ -63,7 +66,7 @@ public class FtcProjectComponentImpl implements FtcProjectComponent, PersistentS
     public void projectOpened()
         {
         EventLog.ii(TAG, project, "projectOpened()");
-        this.adbClient = new AdbClient(this.project);
+        this.adbForProject = new AdbForProject(this.project);
         }
 
     @Override

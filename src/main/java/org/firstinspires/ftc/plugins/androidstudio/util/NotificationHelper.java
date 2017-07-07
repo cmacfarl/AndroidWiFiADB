@@ -1,4 +1,4 @@
-package org.firstinspires.ftc.plugins.androidstudio;
+package org.firstinspires.ftc.plugins.androidstudio.util;
 
 import com.intellij.notification.NotificationGroup;
 import com.intellij.notification.NotificationListener;
@@ -7,7 +7,6 @@ import org.firstinspires.ftc.plugins.androidstudio.Configuration;
 
 public class NotificationHelper
     {
-
     private static final NotificationGroup INFO = NotificationGroup.logOnlyGroup(Configuration.LOGGING_GROUP_NAME);
     private static final NotificationGroup ERROR = NotificationGroup.logOnlyGroup(Configuration.ERROR_GROUP_NAME);
     private static final NotificationListener NOOP_LISTENER = (notification, event) ->

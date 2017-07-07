@@ -1,9 +1,11 @@
-package org.firstinspires.ftc.plugins.androidstudio;
+package org.firstinspires.ftc.plugins.androidstudio.adb;
 
 
 import com.android.ddmlib.AndroidDebugBridge;
 import com.android.ddmlib.Client;
 import com.android.ddmlib.IDevice;
+import org.firstinspires.ftc.plugins.androidstudio.util.EventLog;
+import org.firstinspires.ftc.plugins.androidstudio.util.WeakReferenceSet;
 
 /**
  * {@link AdbContext} maintains the statically available context about the state of
@@ -35,6 +37,7 @@ public class AdbContext
     protected final WeakReferenceSet<AndroidDebugBridge.IClientChangeListener> clientChangeListeners = new WeakReferenceSet<>();
     protected final WeakReferenceSet<AndroidDebugBridge.IDeviceChangeListener> deviceChangeListeners = new WeakReferenceSet<>();
     protected final WeakReferenceSet<AndroidDebugBridge.IDebugBridgeChangeListener> bridgeChangeListeners = new WeakReferenceSet<>();
+    protected       AndroidDebugBridge currentBridge;
 
     //----------------------------------------------------------------------------------------------
     // Construction
@@ -42,6 +45,7 @@ public class AdbContext
 
     protected AdbContext()
         {
+        currentBridge = null;
         addListeners();
         }
 
@@ -127,7 +131,16 @@ public class AdbContext
 
     public void addBridgeChangeListener(AndroidDebugBridge.IDebugBridgeChangeListener listener)
         {
-        bridgeChangeListeners.add(listener);
+        if (bridgeChangeListeners.add(listener))
+            {
+            synchronized (lock)
+                {
+                if (currentBridge != null)
+                    {
+                    listener.bridgeChanged(currentBridge);
+                    }
+                }
+            }
         }
     public void removeBridgeChangeListener(AndroidDebugBridge.IDebugBridgeChangeListener listener)
         {
@@ -139,13 +152,15 @@ public class AdbContext
         public void bridgeChanged(AndroidDebugBridge bridge)
             {
             EventLog.ii(TAG, "bridgeChanged() bridge=%s", bridge);
+            synchronized (lock)
+                {
+                currentBridge = bridge;
+                }
             for (AndroidDebugBridge.IDebugBridgeChangeListener listener : bridgeChangeListeners)
                 {
                 listener.bridgeChanged(bridge);
                 }
             }
         }
-
-
     }
 

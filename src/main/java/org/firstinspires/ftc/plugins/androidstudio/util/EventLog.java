@@ -1,4 +1,4 @@
-package org.firstinspires.ftc.plugins.androidstudio;
+package org.firstinspires.ftc.plugins.androidstudio.util;
 
 import com.intellij.openapi.project.Project;
 
@@ -33,8 +33,18 @@ public class EventLog
         }
     public static void ee(String tag, String format, Object...args)
         {
-        ee(tag, null, format, args);
+        ee(tag, null, null, format, args);
         }
+    public static void ee(String tag, Throwable throwable, String message)
+        {
+        ee(tag, (Project)null, throwable,"%s", message);
+        }
+    public static void ee(String tag, Throwable throwable, String format, Object...args)
+        {
+        ee(tag, (Project)null, throwable, format, args);
+        }
+
+
     public static void ee(String tag, Project project, String message)
         {
         ee(tag, project, "%s", message);

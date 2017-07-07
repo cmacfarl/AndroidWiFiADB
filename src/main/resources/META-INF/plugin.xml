@@ -49,8 +49,8 @@
 
   <project-components>
     <component>
-      <interface-class>org.firstinspires.ftc.plugins.androidstudio.FtcProjectComponent</interface-class>
-      <implementation-class>org.firstinspires.ftc.plugins.androidstudio.FtcProjectComponentImpl</implementation-class>
+      <interface-class>org.firstinspires.ftc.plugins.androidstudio.ui.FtcProjectComponent</interface-class>
+      <implementation-class>org.firstinspires.ftc.plugins.androidstudio.ui.FtcProjectComponentImpl</implementation-class>
     </component>
   </project-components>
 
@@ -69,7 +69,7 @@
       <add-to-group group-id="NavBarToolBar" anchor="first"/>
     </action>
 
-    <action class="org.firstinspires.ftc.plugins.androidstudio.HelloAction" id="FtcSayHello" text="FTC Android Plugin Hello">
+    <action class="org.firstinspires.ftc.plugins.androidstudio.ui.HelloAction" id="FtcSayHello" text="FTC Android Plugin Hello">
       <add-to-group group-id="ToolsMenu"/>
       <add-to-group group-id="WelcomeScreen.QuickStart"/>
     </action>

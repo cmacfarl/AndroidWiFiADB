@@ -1,4 +1,4 @@
-package org.firstinspires.ftc.plugins.androidstudio;
+package org.firstinspires.ftc.plugins.androidstudio.ui;
 
 import com.intellij.openapi.components.ProjectComponent;
 

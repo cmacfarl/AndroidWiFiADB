@@ -18,12 +18,12 @@ package com.github.pedrovgs.androidwifiadb.adb;
 
 import com.github.pedrovgs.androidwifiadb.Device;
 import com.intellij.openapi.project.Project;
+import org.firstinspires.ftc.plugins.androidstudio.util.EventLog;
+import org.jetbrains.android.sdk.AndroidSdkUtils;
+
 import java.io.File;
 import java.util.Collection;
 import java.util.List;
-
-import org.firstinspires.ftc.plugins.androidstudio.EventLog;
-import org.jetbrains.android.sdk.AndroidSdkUtils;
 
 public class ADB {
 
