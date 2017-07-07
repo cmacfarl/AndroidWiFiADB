@@ -22,7 +22,7 @@ public class EventLog
         }
     public static void ii(String tag, Project project, String format, Object...args)
         {
-        String header = String.format("%s%s/E", tag, project==null ? "" : ("(" + project.getName() + ")"));
+        String header = String.format("%s%s/I", tag, project==null ? "" : ("(" + project.getName() + ")"));
         String message = String.format(format, args);
         NotificationHelper.info(String.format("%s: %s", header, message));
         }

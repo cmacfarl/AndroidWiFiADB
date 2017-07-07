@@ -16,8 +16,9 @@ public class AdbClient
 
     public static final String TAG = "AdbClient";
 
-    final Project project;
-    AndroidDebugBridge androidDebugBridge;
+    protected final AdbContext adbContext = AdbContext.getInstance();
+    protected final Project project;
+    protected final AndroidDebugBridge androidDebugBridge;
 
     //----------------------------------------------------------------------------------------------
     // Construction
@@ -26,10 +27,12 @@ public class AdbClient
     public AdbClient(Project project)
         {
         this.project = project;
+        //
+        AndroidDebugBridge androidDebugBridge = null;
         try
             {
-            this.androidDebugBridge = AndroidSdkUtils.getDebugBridge(project);
-            if (null == this.androidDebugBridge)
+            androidDebugBridge = AndroidSdkUtils.getDebugBridge(project);
+            if (null == androidDebugBridge)
                 {
                 EventLog.ee(TAG, project, "getDebugBridge() failed");
                 }
@@ -38,6 +41,6 @@ public class AdbClient
             {
             EventLog.ee(TAG, project, e, "exception during getDebugBridge()");
             }
+        this.androidDebugBridge = androidDebugBridge;
         }
-
     }
