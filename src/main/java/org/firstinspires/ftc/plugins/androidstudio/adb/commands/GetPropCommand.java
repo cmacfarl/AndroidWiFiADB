@@ -13,7 +13,7 @@ import java.util.regex.Pattern;
  * Created by bob on 2017-07-07.
  */
 @SuppressWarnings("WeakerAccess")
-public class GetPropCommand extends Command
+public class GetPropCommand extends AdbShellCommand
     {
     public static final String TAG = "GetPropCommand";
 

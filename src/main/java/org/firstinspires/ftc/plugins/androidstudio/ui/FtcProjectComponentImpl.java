@@ -27,6 +27,7 @@ public class FtcProjectComponentImpl implements FtcProjectComponent, PersistentS
     protected State state;
     protected AdbForProject adbForProject;
 
+    // http://www.jetbrains.org/intellij/sdk/docs/basics/persisting_state_of_components.html
     public static class State
         {
         public String value;

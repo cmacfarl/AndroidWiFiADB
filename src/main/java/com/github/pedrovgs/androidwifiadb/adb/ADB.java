@@ -18,7 +18,6 @@ package com.github.pedrovgs.androidwifiadb.adb;
 
 import com.github.pedrovgs.androidwifiadb.Device;
 import com.intellij.openapi.project.Project;
-import org.firstinspires.ftc.plugins.androidstudio.util.EventLog;
 import org.jetbrains.android.sdk.AndroidSdkUtils;
 
 import java.io.File;
@@ -115,9 +114,7 @@ public class ADB {
 
   private String getAdbPath() {
     String adbPath = "";
-    EventLog.ii(TAG, "calling AndroidSdkUtils.getAdb()");
     File adbFile = AndroidSdkUtils.getAdb(project);
-    EventLog.ii(TAG, "called AndroidSdkUtils.getAdb() result=%s", adbFile);
     if (adbFile != null) {
       adbPath = adbFile.getAbsolutePath();
     }
