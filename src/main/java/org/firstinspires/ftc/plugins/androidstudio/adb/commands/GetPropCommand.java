@@ -2,7 +2,7 @@ package org.firstinspires.ftc.plugins.androidstudio.adb.commands;
 
 import com.android.ddmlib.IDevice;
 import com.android.ddmlib.MultiLineReceiver;
-import org.firstinspires.ftc.plugins.androidstudio.util.StringUtils;
+import org.firstinspires.ftc.plugins.androidstudio.util.StringUtil;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -45,7 +45,7 @@ public class GetPropCommand extends AdbShellCommand
             {
             for (String line : lines)
                 {
-                if (StringUtils.isNullOrEmpty(line) || line.startsWith("#") || line.startsWith("$"))
+                if (StringUtil.isNullOrEmpty(line) || line.startsWith("#") || line.startsWith("$"))
                     {
                     continue;
                     }

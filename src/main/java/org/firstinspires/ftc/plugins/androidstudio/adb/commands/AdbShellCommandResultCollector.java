@@ -1,7 +1,7 @@
 package org.firstinspires.ftc.plugins.androidstudio.adb.commands;
 
 import com.android.ddmlib.MultiLineReceiver;
-import org.firstinspires.ftc.plugins.androidstudio.util.StringUtils;
+import org.firstinspires.ftc.plugins.androidstudio.util.StringUtil;
 
 /**
  * Created by bob on 2017-07-07.
@@ -23,7 +23,7 @@ public class AdbShellCommandResultCollector extends MultiLineReceiver
         {
         for (String line : lines)
             {
-            if (StringUtils.isNullOrEmpty(line) || line.startsWith("#") || line.startsWith("$"))
+            if (StringUtil.isNullOrEmpty(line) || line.startsWith("#") || line.startsWith("$"))
                 {
                 continue;
                 }

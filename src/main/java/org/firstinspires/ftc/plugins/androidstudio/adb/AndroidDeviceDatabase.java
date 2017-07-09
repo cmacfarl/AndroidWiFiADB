@@ -7,13 +7,16 @@ import com.intellij.openapi.project.Project;
 import org.firstinspires.ftc.plugins.androidstudio.Configuration;
 import org.firstinspires.ftc.plugins.androidstudio.adb.commands.HostAdb;
 import org.firstinspires.ftc.plugins.androidstudio.util.EventLog;
+import org.firstinspires.ftc.plugins.androidstudio.util.IpUtil;
+import org.firstinspires.ftc.plugins.androidstudio.util.StringUtil;
 import org.firstinspires.ftc.plugins.androidstudio.util.ThreadPool;
 import org.jetbrains.annotations.Nullable;
 
-import java.net.InetAddress;
+import java.io.ByteArrayOutputStream;
+import java.io.PrintStream;
 import java.net.InetSocketAddress;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
-import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
@@ -94,8 +97,8 @@ public class AndroidDeviceDatabase
     public static class PersistentState
         {
         ArrayList<AndroidDevice.PersistentState> androidDevices = new ArrayList<>();
-        String usbSerialNumberLastConnected = null;
-        InetSocketAddress inetSocketAddressLastConnected = null;
+        String usbSerialNumberLastConnected;
+        String inetSocketAddressLastConnected;
 
         public PersistentState() {}
         public static PersistentState from(PersistentStateExternal persistentStateExternal)
@@ -116,7 +119,7 @@ public class AndroidDeviceDatabase
         return lockDevicesWhile(() ->
             {
             PersistentState result = new PersistentState();
-            result.inetSocketAddressLastConnected = inetSocketAddressLastConnected;
+            result.inetSocketAddressLastConnected = IpUtil.toString(inetSocketAddressLastConnected);
             result.usbSerialNumberLastConnected = usbSerialNumberLastConnected;
             for (AndroidDevice androidDevice : deviceMap.values())
                 {
@@ -136,12 +139,37 @@ public class AndroidDeviceDatabase
             assert deviceMap.isEmpty();
             assert openedDeviceMap.isEmpty();
 
-            inetSocketAddressLastConnected = persistentState.inetSocketAddressLastConnected;
+            inetSocketAddressLastConnected = IpUtil.parseInetSocketAddress(persistentState.inetSocketAddressLastConnected);
             usbSerialNumberLastConnected = persistentState.usbSerialNumberLastConnected;
 
             for (AndroidDevice.PersistentState androidDeviceData : persistentState.androidDevices)
                 {
                 deviceMap.put(androidDeviceData.usbSerialNumber, new AndroidDevice(this, androidDeviceData));
+                }
+
+            debugDump();
+            });
+        }
+
+    protected void debugDump()
+        {
+        ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
+        PrintStream printStream = new PrintStream(byteArrayOutputStream);
+        debugDump(0, printStream);
+        String result = new String(byteArrayOutputStream.toByteArray(), StandardCharsets.UTF_8);
+        EventLog.dd(TAG, "state=\n%s", result);
+        }
+
+    protected void debugDump(int indent, PrintStream out)
+        {
+        lockDevicesWhile(() ->
+            {
+            StringUtil.appendLine(indent, out, "inetSocketAddressLastConnected=%s", IpUtil.toString(inetSocketAddressLastConnected));
+            StringUtil.appendLine(indent, out, "usbSerialNumberLastConnected=%s", usbSerialNumberLastConnected);
+            StringUtil.appendLine(indent, out, "devices:");
+            for (AndroidDevice device : deviceMap.values())
+                {
+                device.debugDump(indent + 1, out);
                 }
             });
         }
@@ -306,6 +334,7 @@ public class AndroidDeviceDatabase
     protected void reconnectLastTcpipConnected()
         {
         InetSocketAddress inetSocketAddress = this.inetSocketAddressLastConnected;
+        EventLog.dd(TAG, "reconnectLastTcpipConnected() addr=%s", inetSocketAddress);
         if (inetSocketAddress != null)
             {
             // 'connect' can take very long time, so use a worker
@@ -317,25 +346,8 @@ public class AndroidDeviceDatabase
                 //
                 // That might be unexpected, but is probably benign. We ignore for now
                 //
-                EventLog.dd(TAG, "reconnectLastTcpipConnected() inet=%s", inetSocketAddress);
                 getHostAdb().connect(inetSocketAddress);
                 });
-            }
-        }
-
-    public void refreshTcpipConnectivityOfConnectedDevices()
-        {
-        List<AndroidDevice> androidDevices = new ArrayList<>();
-        lockDevicesWhile(() ->
-            {
-            androidDevices.addAll(deviceMap.values());
-            });
-
-        // Unlock while we iterate so we can allow new connections to come in as a result of
-        // refreshTcpipConnectivity()'s actions (which may, in general, be on a different thread).
-        for (AndroidDevice androidDevice : androidDevices)
-            {
-            lockDevicesWhile(androidDevice::refreshTcpipConnectivity);
             }
         }
 
@@ -352,13 +364,14 @@ public class AndroidDeviceDatabase
     // Utility
     //----------------------------------------------------------------------------------------------
 
+    /** Do we have a currently-connected device that lives at the Wifi-Direct group owner address? */
     public boolean isWifiDirectIPAddressConnected()
         {
-        return lockDevicesWhile("isWifiDirectIPAddressConnected", () -> {
+        return lockDevicesWhile(() -> {
             for (AndroidDeviceHandle handle : openedDeviceMap.values())
                 {
-                InetAddress inetAddress = handle.getInetAddress();
-                if (inetAddress!=null && inetAddress.equals(Configuration.WIFI_DIRECT_GROUP_OWNER_ADDRESS))
+                InetSocketAddress inetSocketAddress = handle.getInetSocketAddress();
+                if (inetSocketAddress!=null && inetSocketAddress.getAddress().equals(Configuration.WIFI_DIRECT_GROUP_OWNER_ADDRESS))
                     {
                     return true;
                     }

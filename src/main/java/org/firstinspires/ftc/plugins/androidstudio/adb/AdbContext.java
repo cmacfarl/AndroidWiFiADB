@@ -121,7 +121,7 @@ public class AdbContext
         @Override
         public void deviceChanged(IDevice device, int changeMask)
             {
-            EventLog.dd(TAG, "deviceChagned() device=%s mask=0x%08x", device.getSerialNumber(), changeMask);
+            EventLog.dd(TAG, "deviceChanged() device=%s mask=0x%08x", device.getSerialNumber(), changeMask);
             for (AndroidDebugBridge.IDeviceChangeListener listener : deviceChangeListeners)
                 {
                 listener.deviceChanged(device, changeMask);

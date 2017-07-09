@@ -6,10 +6,13 @@ import org.firstinspires.ftc.plugins.androidstudio.adb.commands.GetSettingComman
 import org.firstinspires.ftc.plugins.androidstudio.adb.commands.IfConfigCommand;
 import org.firstinspires.ftc.plugins.androidstudio.util.EventLog;
 import org.firstinspires.ftc.plugins.androidstudio.util.IpUtil;
+import org.firstinspires.ftc.plugins.androidstudio.util.StringUtil;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.io.PrintStream;
 import java.net.InetAddress;
+import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -40,15 +43,20 @@ public class AndroidDeviceHandle
 
     public AndroidDeviceHandle(IDevice device, AndroidDevice androidDevice)
         {
-        EventLog.dd(TAG, "open: %s %s", androidDevice.getDisplayName(), device.getSerialNumber());
+        EventLog.dd(TAG, "open(id=%s at=%s)", androidDevice.getDebugDisplayName(), device.getSerialNumber());
         this.device = device;
         this.androidDevice = androidDevice;
         }
 
     public void close()
         {
-        EventLog.dd(TAG, "close: %s %s", androidDevice.getDebugDisplayName(), device.getSerialNumber());
+        EventLog.dd(TAG, "close(id=%s at=%s)", androidDevice.getDebugDisplayName(), device.getSerialNumber());
         androidDevice.close(this);
+        }
+
+    public void debugDump(int indent, PrintStream out)
+        {
+        StringUtil.appendLine(indent, out, "handle=%s", getSerialNumber());
         }
 
     //----------------------------------------------------------------------------------------------
@@ -159,11 +167,11 @@ public class AndroidDeviceHandle
         return !isTcpip() && !isEmulator();
         }
 
-    public @Nullable InetAddress getInetAddress()
+    public @Nullable InetSocketAddress getInetSocketAddress()
         {
         if (isTcpip())
             {
-            return IpUtil.parseInetAddress(getSerialNumber());
+            return IpUtil.parseInetSocketAddress(getSerialNumber());
             }
         return null;
         }
