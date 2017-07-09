@@ -51,13 +51,22 @@ public class AndroidDeviceHandle
         androidDevice.close(this);
         }
 
+    //----------------------------------------------------------------------------------------------
+    // Accessing
+    //----------------------------------------------------------------------------------------------
+
     public AndroidDevice getAndroidDevice()
         {
         return androidDevice;
         }
 
+    public IDevice getDevice()
+        {
+        return device;
+        }
+
     //----------------------------------------------------------------------------------------------
-    // High level accessing
+    // High level device accessing
     //----------------------------------------------------------------------------------------------
 
     /*

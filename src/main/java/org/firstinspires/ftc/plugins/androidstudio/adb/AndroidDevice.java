@@ -12,9 +12,12 @@ import java.io.IOException;
 import java.net.InetAddress;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Function;
 import java.util.function.Predicate;
+import java.util.function.Supplier;
 
 /**
  * {@link AndroidDevice} represents the consolidated knowledge we have regarding a particular
@@ -29,17 +32,15 @@ public class AndroidDevice extends MemberwiseCloneable<AndroidDevice>
 
     public static final String TAG = "AndroidDevice";
 
-    protected final Object                  lock = new Object();
-    protected final String                  usbSerialNumber;
-    protected final AndroidDeviceDatabase   database;
+    protected final String usbSerialNumber;
+    protected final AndroidDeviceDatabase database;
 
-    protected       InetAddress             inetAddressLastConnected = null;
-    protected       String                  wifiDirectName = null;
-
+    protected final ReentrantLock                       lock = new ReentrantLock();
     /** Map of serial number -> device handle. If there's more than one, typically
      * one of them is over USB and the other is over wifi */
-    protected final Map<String, AndroidDeviceHandle> handles = new HashMap<>();
-
+    protected final Map<String, AndroidDeviceHandle>    handles = new ConcurrentHashMap<>();
+    protected       InetAddress                         inetAddressLastConnected = null;
+    protected       String                              wifiDirectName = null;
 
     //----------------------------------------------------------------------------------------------
     // Construction
@@ -61,7 +62,7 @@ public class AndroidDevice extends MemberwiseCloneable<AndroidDevice>
     // Must be idempotent
     public @NotNull AndroidDeviceHandle open(IDevice device)
         {
-        synchronized (lock)
+        return lockWhile(() ->
             {
             AndroidDeviceHandle result = handles.computeIfAbsent(device.getSerialNumber(),
                     (serialNumber) -> new AndroidDeviceHandle(device, this));
@@ -74,14 +75,45 @@ public class AndroidDevice extends MemberwiseCloneable<AndroidDevice>
                 }
 
             return result;
-            }
+            });
         }
 
     public void close(AndroidDeviceHandle deviceHandle)
         {
-        synchronized (lock)
+        lockWhile(() -> handles.remove(deviceHandle.getSerialNumber()));
+        }
+
+    //----------------------------------------------------------------------------------------------
+    // Locking
+    //----------------------------------------------------------------------------------------------
+
+    protected void lockWhile(Runnable runnable)
+        {
+        lockWhile(() ->
             {
-            handles.remove(deviceHandle.getSerialNumber());
+            runnable.run();
+            return null;
+            });
+        }
+
+    protected <T> T lockWhile(Supplier<T> supplier)
+        {
+        try
+            {
+            lock.lockInterruptibly();
+            try
+                {
+                return supplier.get();
+                }
+            finally
+                {
+                lock.unlock();
+                }
+            }
+        catch (InterruptedException e)
+            {
+            Thread.currentThread().interrupt();
+            throw new RuntimeException("interruption");
             }
         }
 
@@ -148,10 +180,7 @@ public class AndroidDevice extends MemberwiseCloneable<AndroidDevice>
 
     public boolean isOpen()
         {
-        synchronized (lock)
-            {
-            return !handles.isEmpty();
-            }
+        return lockWhile(() -> !handles.isEmpty());
         }
 
     /** Is at least one of our handles already connected using TCPIP? */
@@ -192,7 +221,7 @@ public class AndroidDevice extends MemberwiseCloneable<AndroidDevice>
 
     protected boolean predicateOverHandles(Predicate<AndroidDeviceHandle> predicate)
         {
-        synchronized (lock)
+        return lockWhile(() ->
             {
             for (AndroidDeviceHandle handle : handles.values())
                 {
@@ -201,13 +230,13 @@ public class AndroidDevice extends MemberwiseCloneable<AndroidDevice>
                     return true;
                     }
                 }
-            }
-        return false;
+            return false;
+            });
         }
 
     protected <T> T getDeviceProperty(Function<AndroidDeviceHandle, T> function)
         {
-        synchronized (lock)
+        return lockWhile(() ->
             {
             for (AndroidDeviceHandle handle : handles.values())
                 {
@@ -217,13 +246,13 @@ public class AndroidDevice extends MemberwiseCloneable<AndroidDevice>
                     return t;
                     }
                 }
-            }
-        return null;
+            return null;
+            });
         }
 
     protected <T> T anyHandle(Function<AndroidDeviceHandle, T> function)
         {
-        synchronized (lock)
+        return lockWhile(() ->
             {
             // For robustness: try USB handles first
             for (AndroidDeviceHandle handle : handles.values())
@@ -237,8 +266,8 @@ public class AndroidDevice extends MemberwiseCloneable<AndroidDevice>
                 {
                 return function.apply(handle);
                 }
-            }
-        return null;
+            return null;
+            });
         }
 
     protected boolean anyHandleBool(Function<AndroidDeviceHandle, Boolean> function)
@@ -251,16 +280,11 @@ public class AndroidDevice extends MemberwiseCloneable<AndroidDevice>
     // Commands
     //----------------------------------------------------------------------------------------------
 
+    /** Called with the database handles lock NOT held. */
     public void refreshTcpipConnectivity()
         {
-        if (!isOpen())
-            return;
-
-        if (isOpenUsingTcpip())
-            {
-            // ADB has a TCPIP connection for this guy; we're not going to add one
-            }
-        else
+        boolean needToConnect = lockWhile(() -> isOpen() && !isOpenUsingTcpip());
+        if (needToConnect)
             {
             // ADB doesn't already have a TCPIP connection for him. We'll try to make one if we can.
             //
@@ -269,14 +293,14 @@ public class AndroidDevice extends MemberwiseCloneable<AndroidDevice>
             if (!connected)
                 {
                 // Can we reach him over WifiDirect? If so, use that
-                if (!database.isWifiDirectIPAddressConnected()
+                boolean tryWifiDirect = lockWhile(() ->
+                        !database.isWifiDirectIPAddressConnected()
                         && isPingable(Configuration.WIFI_DIRECT_GROUP_OWNER_ADDRESS)
-                        && isWifiDirectGroupOwner())
+                        && isWifiDirectGroupOwner());
+
+                if (tryWifiDirect)
                     {
-                    if (listenOnTcpip() && connectAdbTcpip(Configuration.WIFI_DIRECT_GROUP_OWNER_ADDRESS))
-                        {
-                        connected = listenAndConnect(Configuration.WIFI_DIRECT_GROUP_OWNER_ADDRESS);
-                        }
+                    connected = listenAndConnect(Configuration.WIFI_DIRECT_GROUP_OWNER_ADDRESS);
                     }
                 }
 
@@ -286,16 +310,13 @@ public class AndroidDevice extends MemberwiseCloneable<AndroidDevice>
                 InetAddress inetAddress = getWlanAddress();
                 if (inetAddress != null && isPingable(inetAddress))
                     {
-                    if (listenOnTcpip() && connectAdbTcpip(inetAddress))
-                        {
-                        connected = listenAndConnect(inetAddress);
-                        }
+                    connected = listenAndConnect(inetAddress);
                     }
                 }
 
             if (!connected)
                 {
-                EventLog.notify(TAG, "unable to connect to %s", getUsbSerialNumber());
+                EventLog.notify(TAG, "unable to tcpip-connect to %s", getUsbSerialNumber());
                 }
             }
         }
@@ -303,10 +324,10 @@ public class AndroidDevice extends MemberwiseCloneable<AndroidDevice>
     protected boolean listenAndConnect(InetAddress inetAddress)
         {
         boolean result = false;
-        if (listenOnTcpip() && connectAdbTcpip(inetAddress))
+        if (listenOnTcpip() && adbConnect(inetAddress))
             {
             result = true;
-            EventLog.dd(TAG, "connected %s as %s", getUsbSerialNumber(), inetAddress);
+            EventLog.dd(TAG, "tcpip-connected to %s at %s", getUsbSerialNumber(), inetAddress);
             }
         return result;
         }
@@ -322,7 +343,7 @@ public class AndroidDevice extends MemberwiseCloneable<AndroidDevice>
             }
         }
 
-    public boolean connectAdbTcpip(InetAddress inetAddress)
+    public boolean adbConnect(InetAddress inetAddress)
         {
         boolean result = database.getHostAdb().connect(inetAddress);
         if (result)

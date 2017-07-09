@@ -85,6 +85,8 @@ public class HostAdb
         return connect(new InetSocketAddress(inetAddress, Configuration.ADB_DAEMON_PORT));
         }
 
+    /** Note: this can take a *very* long time if there's no device reachable at the
+     * indicated address */
     public boolean connect(InetSocketAddress inetSocketAddress)
         {
         String payload = String.format("connect %s", inetSocketAddress.toString());

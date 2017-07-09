@@ -7,15 +7,16 @@ import com.intellij.openapi.project.Project;
 import org.firstinspires.ftc.plugins.androidstudio.Configuration;
 import org.firstinspires.ftc.plugins.androidstudio.adb.commands.HostAdb;
 import org.firstinspires.ftc.plugins.androidstudio.util.EventLog;
+import org.firstinspires.ftc.plugins.androidstudio.util.StringUtils;
+import org.firstinspires.ftc.plugins.androidstudio.util.ThreadPool;
 import org.jetbrains.annotations.Nullable;
 
-import java.io.File;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -41,7 +42,6 @@ public class AndroidDeviceDatabase
 
     public static final String TAG = "AndroidDeviceDatabase";
 
-    protected final ReentrantLock lock = new ReentrantLock();
     protected final HostAdb hostAdb;
     protected final AdbContext adbContext;
     protected final DeviceChangeListener deviceChangeListener = new DeviceChangeListener();
@@ -49,14 +49,19 @@ public class AndroidDeviceDatabase
 
     protected AndroidDebugBridge currentBridge;
 
-    /** keyed by USB serial number */
-    protected final Map<String, AndroidDevice> deviceMap = new HashMap<>();
-
-    /** keyed by (vanilla) serial number */
-    protected final Map<String, AndroidDeviceHandle> openedDeviceMap = new HashMap<>();
-
-    protected final ReentrantLock controlLock = new ReentrantLock();
+    protected final ReentrantLock deviceLock = new ReentrantLock();
+    protected final ReentrantLock pendLock = new ReentrantLock();
     protected final ArrayList<Runnable> pendingOperations = new ArrayList<>();
+
+    /** keyed by USB serial number. 'concurrent' so we can delete while iterating */
+    protected final Map<String, AndroidDevice> deviceMap = new ConcurrentHashMap<>();
+
+    /** keyed by (vanilla) serial number. 'concurrent' so we can delete while iterating */
+    protected final Map<String, AndroidDeviceHandle> openedDeviceMap = new ConcurrentHashMap<>();
+
+    String usbSerialNumberLastConnected = null;
+    InetSocketAddress inetSocketAddressLastConnected = null;
+
 
     //----------------------------------------------------------------------------------------------
     // Construction
@@ -90,6 +95,8 @@ public class AndroidDeviceDatabase
     public static class PersistentState
         {
         ArrayList<AndroidDevice.PersistentState> androidDevices = new ArrayList<>();
+        String usbSerialNumberLastConnected = null;
+        InetSocketAddress inetSocketAddressLastConnected = null;
 
         public PersistentState() {}
         public static PersistentState from(PersistentStateExternal persistentStateExternal)
@@ -107,9 +114,11 @@ public class AndroidDeviceDatabase
 
     public PersistentStateExternal getPersistentState()
         {
-        return lockWhile(() ->
+        return lockDevicesWhile(() ->
             {
             PersistentState result = new PersistentState();
+            result.inetSocketAddressLastConnected = inetSocketAddressLastConnected;
+            result.usbSerialNumberLastConnected = usbSerialNumberLastConnected;
             for (AndroidDevice androidDevice : deviceMap.values())
                 {
                 result.androidDevices.add(androidDevice.getPersistentState());
@@ -123,10 +132,13 @@ public class AndroidDeviceDatabase
         {
         PersistentState persistentState = PersistentState.from(persistentStateExternal);
         EventLog.dd(TAG,"loadPersistentState() count=%d", persistentState.androidDevices.size());
-        lockWhile(() ->
+        lockDevicesWhile(() ->
             {
             assert deviceMap.isEmpty();
             assert openedDeviceMap.isEmpty();
+
+            inetSocketAddressLastConnected = persistentState.inetSocketAddressLastConnected;
+            usbSerialNumberLastConnected = persistentState.usbSerialNumberLastConnected;
 
             for (AndroidDevice.PersistentState androidDeviceData : persistentState.androidDevices)
                 {
@@ -148,21 +160,21 @@ public class AndroidDeviceDatabase
     // Operations
     //----------------------------------------------------------------------------------------------
 
-    protected void lockWhile(Runnable runnable)
+    protected void lockDevicesWhile(Runnable runnable)
         {
-        lockWhile(() ->
+        lockDevicesWhile(() ->
             {
             runnable.run();
             return null;
             });
         }
 
-    protected <T> T lockWhile(Supplier<T> supplier)
+    protected <T> T lockDevicesWhile(Supplier<T> supplier)
         {
         try {
             boolean thrown = false;
 
-            lock.lockInterruptibly();
+            deviceLock.lockInterruptibly();
             try {
                 return supplier.get();
                 }
@@ -173,22 +185,23 @@ public class AndroidDeviceDatabase
                 }
             finally
                 {
-                boolean controlLockTaken = false;
+                boolean pendLockTaken = false;
                 try {
                     if (!thrown)
                         {
-                        controlLock.lock();
-                        controlLockTaken = true;
+                        pendLock.lock();
+                        pendLockTaken = true;
                         while (!pendingOperations.isEmpty())
                             {
+                            EventLog.dd(TAG, "running pending op");
                             pendingOperations.remove(0).run();
                             }
                         }
                     }
                 finally
                     {
-                    lock.unlock();
-                    if (controlLockTaken) controlLock.unlock();
+                    deviceLock.unlock();
+                    if (pendLockTaken) pendLock.unlock();
                     }
                 }
             }
@@ -201,22 +214,31 @@ public class AndroidDeviceDatabase
 
     protected void lockAndRunOrPend(Runnable runnable)
         {
-        controlLock.lock();
-        if (lock.tryLock())
-            {
-            controlLock.unlock();
-            try {
-                runnable.run();
-                }
-            finally
+        pendLock.lock();
+        boolean pendLockTaken = true;
+        try {
+            if (deviceLock.tryLock())
                 {
-                lock.unlock();
+                pendLock.unlock();
+                pendLockTaken = false;
+                try
+                    {
+                    runnable.run();
+                    }
+                finally
+                    {
+                    deviceLock.unlock();
+                    }
+                }
+            else
+                {
+                EventLog.dd(TAG, "pending op");
+                pendingOperations.add(runnable);
                 }
             }
-        else
+        finally
             {
-            pendingOperations.add(runnable);
-            controlLock.unlock();
+            if (pendLockTaken) pendLock.unlock();;
             }
         }
 
@@ -224,7 +246,7 @@ public class AndroidDeviceDatabase
     /** Must be idempotent */
     public AndroidDeviceHandle open(IDevice device)
         {
-        return lockWhile(() ->
+        AndroidDeviceHandle result = lockDevicesWhile(() ->
             {
             AndroidDevice androidDevice = deviceMap.computeIfAbsent(getUsbSerialNumber(device),
                     (usbSerialNumber) -> new AndroidDevice(AndroidDeviceDatabase.this, usbSerialNumber));
@@ -232,11 +254,15 @@ public class AndroidDeviceDatabase
             openedDeviceMap.put(device.getSerialNumber(), handle);
             return handle;
             });
+
+        result.getAndroidDevice().refreshTcpipConnectivity();
+
+        return result;
         }
 
     public void close(IDevice device)
         {
-        lockWhile(() ->
+        lockDevicesWhile(() ->
             {
             AndroidDeviceHandle handle = openedDeviceMap.get(device.getSerialNumber());
             if (handle != null)
@@ -244,21 +270,58 @@ public class AndroidDeviceDatabase
                 handle.close();
                 openedDeviceMap.remove(device.getSerialNumber());
                 }
-            return null;
             });
         }
 
-    public void refreshTcpipConnectivity()
+    protected void closeAll()
+        {
+        EventLog.dd(TAG, "closeAll()");
+        lockDevicesWhile(() ->
+            {
+            for (AndroidDeviceHandle handle : openedDeviceMap.values())
+                {
+                close(handle.getDevice());
+                }
+            });
+        }
+
+    //----------------------------------------------------------------------------------------------
+    // TCPIP management
+    //----------------------------------------------------------------------------------------------
+
+    protected void reconnectLastTcpipConnected()
+        {
+        InetSocketAddress inetSocketAddress = this.inetSocketAddressLastConnected;
+        if (inetSocketAddress != null)
+            {
+            // 'connect' can take very long time, so use a worker
+            ThreadPool.getDefault().execute(() ->
+                {
+                // Attempt to connect to this most recent fellow. Now, if we successfully connect,
+                // then it *may* be the case that it's not the same guy if the IP address in question
+                // was somehow reassigned (which can only happen on an infrastructure network).
+                //
+                // That might be unexpected, but is probably benign. We ignore for now
+                //
+                EventLog.dd(TAG, "reconnectLastTcpipConnected() inet=%s", inetSocketAddress);
+                getHostAdb().connect(inetSocketAddress);
+                });
+            }
+        }
+
+    public void refreshTcpipConnectivityOfConnectedDevices()
         {
         List<AndroidDevice> androidDevices = new ArrayList<>();
-        lockWhile(() ->
+        lockDevicesWhile(() ->
             {
             androidDevices.addAll(deviceMap.values());
             });
 
+        // Unlock while we iterate so we can allow new connections to come in as a result of
+        // refreshTcpipConnectivity()'s actions (which may, in general, be on a different thread).
         for (AndroidDevice androidDevice : androidDevices)
             {
-            lockWhile(androidDevice::refreshTcpipConnectivity);
+            lockDevicesWhile(androidDevice::refreshTcpipConnectivity);
             }
         }
 
@@ -268,7 +331,11 @@ public class AndroidDeviceDatabase
         }
     public void noteDeviceConnectedTcpip(AndroidDevice androidDevice, InetSocketAddress inetSocketAddress)
         {
-        // TODO
+        lockDevicesWhile(() ->
+            {
+            usbSerialNumberLastConnected = androidDevice.getUsbSerialNumber();
+            inetSocketAddressLastConnected = inetSocketAddress;
+            });
         }
 
     //----------------------------------------------------------------------------------------------
@@ -277,7 +344,7 @@ public class AndroidDeviceDatabase
 
     public boolean isWifiDirectIPAddressConnected()
         {
-        return lockWhile(() -> {
+        return lockDevicesWhile(() -> {
             for (AndroidDeviceHandle handle : openedDeviceMap.values())
                 {
                 InetAddress inetAddress = handle.getInetAddress();
@@ -320,13 +387,22 @@ public class AndroidDeviceDatabase
          * can be null aren't well understood.  */
         @Override public void bridgeChanged(@Nullable AndroidDebugBridge bridge)
             {
-            synchronized (lock)
+            synchronized (deviceLock)
                 {
                 AndroidDebugBridge oldBridge = currentBridge;
                 currentBridge = bridge;
                 if (currentBridge != oldBridge)
                     {
-                    // ....
+                    if (oldBridge != null)
+                        {
+                        // This may not be necessary: should we see device notifications for these
+                        // before we get here?
+                        closeAll();
+                        }
+                    if (currentBridge != null)
+                        {
+                        reconnectLastTcpipConnected();
+                        }
                     }
                 }
             }
