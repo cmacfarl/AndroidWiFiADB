@@ -161,7 +161,12 @@ public class AndroidDeviceDatabase
 
     protected void lockDevicesWhile(Runnable runnable)
         {
-        lockDevicesWhile(() ->
+        lockDevicesWhile(null, runnable);
+        }
+
+    protected void lockDevicesWhile(@Nullable String function, Runnable runnable)
+        {
+        lockDevicesWhile(function, () ->
             {
             runnable.run();
             return null;
@@ -170,6 +175,12 @@ public class AndroidDeviceDatabase
 
     protected <T> T lockDevicesWhile(Supplier<T> supplier)
         {
+        return lockDevicesWhile(null, supplier);
+        }
+
+    protected <T> T lockDevicesWhile(@Nullable String function, Supplier<T> supplier)
+        {
+        if (function != null) EventLog.dd(TAG, "%s...", function);
         try {
             boolean thrown = false;
 
@@ -208,6 +219,10 @@ public class AndroidDeviceDatabase
             {
             Thread.currentThread().interrupt();
             throw new RuntimeException("interruption");
+            }
+        finally
+            {
+            if (function != null) EventLog.dd(TAG, "...%s", function);
             }
         }
 
@@ -254,7 +269,7 @@ public class AndroidDeviceDatabase
             return handle;
             });
 
-        // result.getAndroidDevice().refreshTcpipConnectivity();
+        result.getAndroidDevice().refreshTcpipConnectivity();
 
         return result;
         }
@@ -343,7 +358,7 @@ public class AndroidDeviceDatabase
 
     public boolean isWifiDirectIPAddressConnected()
         {
-        return lockDevicesWhile(() -> {
+        return lockDevicesWhile("isWifiDirectIPAddressConnected", () -> {
             for (AndroidDeviceHandle handle : openedDeviceMap.values())
                 {
                 InetAddress inetAddress = handle.getInetAddress();

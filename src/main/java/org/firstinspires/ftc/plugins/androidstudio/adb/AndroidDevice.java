@@ -3,28 +3,25 @@ package org.firstinspires.ftc.plugins.androidstudio.adb;
 import com.android.ddmlib.IDevice;
 import org.firstinspires.ftc.plugins.androidstudio.Configuration;
 import org.firstinspires.ftc.plugins.androidstudio.util.EventLog;
-import org.firstinspires.ftc.plugins.androidstudio.util.MemberwiseCloneable;
+import org.firstinspires.ftc.plugins.androidstudio.util.ReentrantLockOwner;
 import org.firstinspires.ftc.plugins.androidstudio.util.Misc;
 import org.firstinspires.ftc.plugins.androidstudio.util.StringUtils;
 import org.jetbrains.annotations.NotNull;
 
 import java.io.IOException;
 import java.net.InetAddress;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Function;
 import java.util.function.Predicate;
-import java.util.function.Supplier;
 
 /**
  * {@link AndroidDevice} represents the consolidated knowledge we have regarding a particular
  * physical piece of hardware.
  */
 @SuppressWarnings("WeakerAccess")
-public class AndroidDevice extends MemberwiseCloneable<AndroidDevice>
+public class AndroidDevice extends ReentrantLockOwner
     {
     //----------------------------------------------------------------------------------------------
     // State
@@ -35,7 +32,6 @@ public class AndroidDevice extends MemberwiseCloneable<AndroidDevice>
     protected final String usbSerialNumber;
     protected final AndroidDeviceDatabase database;
 
-    protected final ReentrantLock                       lock = new ReentrantLock();
     /** Map of serial number -> device handle. If there's more than one, typically
      * one of them is over USB and the other is over wifi */
     protected final Map<String, AndroidDeviceHandle>    handles = new ConcurrentHashMap<>();
@@ -81,40 +77,6 @@ public class AndroidDevice extends MemberwiseCloneable<AndroidDevice>
     public void close(AndroidDeviceHandle deviceHandle)
         {
         lockWhile(() -> handles.remove(deviceHandle.getSerialNumber()));
-        }
-
-    //----------------------------------------------------------------------------------------------
-    // Locking
-    //----------------------------------------------------------------------------------------------
-
-    protected void lockWhile(Runnable runnable)
-        {
-        lockWhile(() ->
-            {
-            runnable.run();
-            return null;
-            });
-        }
-
-    protected <T> T lockWhile(Supplier<T> supplier)
-        {
-        try
-            {
-            lock.lockInterruptibly();
-            try
-                {
-                return supplier.get();
-                }
-            finally
-                {
-                lock.unlock();
-                }
-            }
-        catch (InterruptedException e)
-            {
-            Thread.currentThread().interrupt();
-            throw new RuntimeException("interruption");
-            }
         }
 
     //----------------------------------------------------------------------------------------------
@@ -221,7 +183,7 @@ public class AndroidDevice extends MemberwiseCloneable<AndroidDevice>
 
     protected boolean predicateOverHandles(Predicate<AndroidDeviceHandle> predicate)
         {
-        return lockWhile(() ->
+        return lockWhile("predicateOverHandles",() ->
             {
             for (AndroidDeviceHandle handle : handles.values())
                 {
@@ -236,7 +198,7 @@ public class AndroidDevice extends MemberwiseCloneable<AndroidDevice>
 
     protected <T> T getDeviceProperty(Function<AndroidDeviceHandle, T> function)
         {
-        return lockWhile(() ->
+        return lockWhile("getDeviceProperty", () ->
             {
             for (AndroidDeviceHandle handle : handles.values())
                 {
@@ -252,7 +214,7 @@ public class AndroidDevice extends MemberwiseCloneable<AndroidDevice>
 
     protected <T> T anyHandle(Function<AndroidDeviceHandle, T> function)
         {
-        return lockWhile(() ->
+        return lockWhile("anyHandle", () ->
             {
             // For robustness: try USB handles first
             for (AndroidDeviceHandle handle : handles.values())
@@ -283,7 +245,7 @@ public class AndroidDevice extends MemberwiseCloneable<AndroidDevice>
     /** Called with the database handles lock NOT held. */
     public void refreshTcpipConnectivity()
         {
-        boolean needToConnect = lockWhile(() -> isOpen() && !isOpenUsingTcpip());
+        boolean needToConnect = lockWhile("refresh1", () -> isOpen() && !isOpenUsingTcpip());
         if (needToConnect)
             {
             // ADB doesn't already have a TCPIP connection for him. We'll try to make one if we can.
@@ -293,23 +255,28 @@ public class AndroidDevice extends MemberwiseCloneable<AndroidDevice>
             if (!connected)
                 {
                 // Can we reach him over WifiDirect? If so, use that
-                boolean tryWifiDirect = lockWhile(() ->
-                        !database.isWifiDirectIPAddressConnected()
+                EventLog.dd(TAG, "maybe wifi direct");
+                boolean tryWifiDirect = lockWhile("refresh2", () ->
+                    !database.isWifiDirectIPAddressConnected()
                         && isPingable(Configuration.WIFI_DIRECT_GROUP_OWNER_ADDRESS)
-                        && isWifiDirectGroupOwner());
+                        && isWifiDirectGroupOwner()
+                    );
 
                 if (tryWifiDirect)
                     {
+                    EventLog.dd(TAG, "trying wifi direct");
                     connected = listenAndConnect(Configuration.WIFI_DIRECT_GROUP_OWNER_ADDRESS);
                     }
                 }
 
             if (!connected)
                 {
+                EventLog.dd(TAG, "maybe wlan");
                 // Is he on some other (infrastructure) wifi network that we can reach him through?
                 InetAddress inetAddress = getWlanAddress();
                 if (inetAddress != null && isPingable(inetAddress))
                     {
+                    EventLog.dd(TAG, "trying wlan %s", inetAddress);
                     connected = listenAndConnect(inetAddress);
                     }
                 }
@@ -323,24 +290,30 @@ public class AndroidDevice extends MemberwiseCloneable<AndroidDevice>
 
     protected boolean listenAndConnect(InetAddress inetAddress)
         {
-        boolean result = false;
-        if (listenOnTcpip() && adbConnect(inetAddress))
+        return trace("listenAndConnect", () ->
             {
-            result = true;
-            EventLog.dd(TAG, "tcpip-connected to %s at %s", getUsbSerialNumber(), inetAddress);
-            }
-        return result;
+            boolean result = false;
+            if (listenOnTcpip() && adbConnect(inetAddress))
+                {
+                result = true;
+                EventLog.dd(TAG, "tcpip-connected to %s at %s", getUsbSerialNumber(), inetAddress);
+                }
+            return result;
+            });
         }
 
     public boolean isPingable(InetAddress inetAddress)
         {
-        try {
-            return inetAddress.isReachable(Configuration.msAdbTimeoutFast);
-            }
-        catch (IOException e)
+        return trace("isPingable", () ->
             {
-            return false;
-            }
+            try {
+                return inetAddress.isReachable(Configuration.msAdbTimeoutFast);
+                }
+            catch (IOException|RuntimeException e)
+                {
+                return false;
+                }
+            });
         }
 
     public boolean adbConnect(InetAddress inetAddress)

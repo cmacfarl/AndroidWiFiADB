@@ -34,6 +34,26 @@ public class EventLog
         NotificationHelper.info(line);
         }
 
+    public static void dd(Object instance, String message)
+        {
+        dd(instance, "%s", message);
+        }
+    public static void dd(Object instance, String format, Object...args)
+        {
+        dd(instance.getClass(), format, args);
+        }
+    public static void dd(Class clazz, String message)
+        {
+        dd(clazz, "%s", message);
+        }
+    public static void dd(Class clazz, String format, Object...args)
+        {
+        String header = String.format("%s/D", clazz.getSimpleName());
+        String message = String.format(format, args);
+        String line = String.format("%s: %s", header, message);
+        Logger.getInstance(clazz).info(line);
+        NotificationHelper.info(line);
+        }
     public static void dd(String tag, String message)
         {
         dd(tag, "%s", message);
@@ -43,7 +63,7 @@ public class EventLog
         String header = String.format("%s/D", tag);
         String message = String.format(format, args);
         String line = String.format("%s: %s", header, message);
-        logger.debug(line);
+        logger.info(line);
         NotificationHelper.info(line);
         }
 
