@@ -2,6 +2,7 @@ package org.firstinspires.ftc.plugins.androidstudio.adb;
 
 import com.android.ddmlib.AndroidDebugBridge;
 import com.android.ddmlib.IDevice;
+import com.google.gson.Gson;
 import com.intellij.openapi.project.Project;
 import org.firstinspires.ftc.plugins.androidstudio.Configuration;
 import org.firstinspires.ftc.plugins.androidstudio.adb.commands.HostAdb;
@@ -71,12 +72,35 @@ public class AndroidDeviceDatabase
     // Loading and saving
     //----------------------------------------------------------------------------------------------
 
+    public static class PersistentStateExternal
+        {
+        public String json = null;
+        public PersistentStateExternal() { }
+        public PersistentStateExternal(PersistentState proto)
+            {
+            this.json = new Gson().toJson(proto);
+            }
+        }
+
     public static class PersistentState
         {
         ArrayList<AndroidDevice.PersistentState> androidDevices = new ArrayList<>();
+
+        public PersistentState() {}
+        public static PersistentState from(PersistentStateExternal persistentStateExternal)
+            {
+            if (persistentStateExternal.json==null)
+                {
+                return new PersistentState();
+                }
+            else
+                {
+                return new Gson().fromJson(persistentStateExternal.json, PersistentState.class);
+                }
+            }
         }
 
-    public PersistentState getPersistentState()
+    public PersistentStateExternal getPersistentState()
         {
         return lockWhile(() ->
             {
@@ -86,12 +110,13 @@ public class AndroidDeviceDatabase
                 result.androidDevices.add(androidDevice.getPersistentState());
                 }
             EventLog.ii(TAG,"getPersistentState() count=%d", result.androidDevices.size());
-            return result;
+            return new PersistentStateExternal(result);
             });
         }
 
-    public void loadPersistentState(PersistentState persistentState)
+    public void loadPersistentState(PersistentStateExternal persistentStateExternal)
         {
+        PersistentState persistentState = PersistentState.from(persistentStateExternal);
         EventLog.ii(TAG,"loadPersistentState() count=%d", persistentState.androidDevices.size());
         lockWhile(() ->
             {

@@ -16,7 +16,7 @@ import org.jetbrains.annotations.Nullable;
  */
 @SuppressWarnings("WeakerAccess")
 @State(name="FtcProjectComponent", storages = { @Storage(Configuration.XML_STATE_FILE_NAME) } )
-public class FtcProjectComponentImpl implements FtcProjectComponent, PersistentStateComponent<FtcProjectComponentImpl.State>
+public class FtcProjectComponentImpl implements FtcProjectComponent, PersistentStateComponent<AndroidDeviceDatabase.PersistentStateExternal>
     {
     //----------------------------------------------------------------------------------------------
     // State
@@ -26,12 +26,7 @@ public class FtcProjectComponentImpl implements FtcProjectComponent, PersistentS
 
     protected final Project project;
     protected       AndroidDeviceDatabase database;
-    protected       AndroidDeviceDatabase.PersistentState stagedState = null;
-
-    public static class State
-        {
-        public String value;
-        }
+    protected       AndroidDeviceDatabase.PersistentStateExternal stagedState = null;
 
     //----------------------------------------------------------------------------------------------
     // Construction
@@ -71,7 +66,7 @@ public class FtcProjectComponentImpl implements FtcProjectComponent, PersistentS
         if (stagedState != null)
             {
             database.loadPersistentState(stagedState);
-            this.stagedState = null;
+            stagedState = null;
             }
         }
 
@@ -88,17 +83,14 @@ public class FtcProjectComponentImpl implements FtcProjectComponent, PersistentS
     //----------------------------------------------------------------------------------------------
 
     @Override @Nullable
-    public State getState()
+    public AndroidDeviceDatabase.PersistentStateExternal getState()
         {
-        State result = new State();
-        result.value = "barney";
-        return result;
-        // return database == null ? new AndroidDeviceDatabase.PersistentState() : database.getPersistentState();
+        return database == null ? new AndroidDeviceDatabase.PersistentStateExternal() : database.getPersistentState();
         }
 
-    @Override public void loadState(State persistentState)
+    @Override public void loadState(AndroidDeviceDatabase.PersistentStateExternal persistentState)
         {
-        /*if (database==null)
+        if (database==null)
             {
             stagedState = persistentState;
             }
@@ -106,6 +98,12 @@ public class FtcProjectComponentImpl implements FtcProjectComponent, PersistentS
             {
             stagedState = null;
             database.loadPersistentState(persistentState);
-            }*/
+            }
+        }
+
+    /*@Override*/
+    public void noStateLoaded()
+        {
+        loadState(new AndroidDeviceDatabase.PersistentStateExternal());
         }
     }

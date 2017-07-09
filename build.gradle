@@ -16,6 +16,7 @@ apply plugin: 'jacoco'*/
 // version '0.0.40' // gets added to the file name
 
 sourceCompatibility = 1.8
+targetCompatibility = 1.8
 
 repositories {
   mavenCentral()
