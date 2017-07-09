@@ -72,6 +72,9 @@ public class AndroidDeviceDatabase
     // Loading and saving
     //----------------------------------------------------------------------------------------------
 
+    /** A hack: not XML native, but an JSON dump living in an XML attribute, but it works. And
+     * blimy if we just can't get the default serialization to work with anything complicated.
+     * So ***** 'em. */
     public static class PersistentStateExternal
         {
         public String json = null;
