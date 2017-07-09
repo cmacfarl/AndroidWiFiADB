@@ -7,7 +7,6 @@ import com.intellij.openapi.project.Project;
 import org.firstinspires.ftc.plugins.androidstudio.Configuration;
 import org.firstinspires.ftc.plugins.androidstudio.adb.commands.HostAdb;
 import org.firstinspires.ftc.plugins.androidstudio.util.EventLog;
-import org.firstinspires.ftc.plugins.androidstudio.util.StringUtils;
 import org.firstinspires.ftc.plugins.androidstudio.util.ThreadPool;
 import org.jetbrains.annotations.Nullable;
 
@@ -255,7 +254,7 @@ public class AndroidDeviceDatabase
             return handle;
             });
 
-        result.getAndroidDevice().refreshTcpipConnectivity();
+        // result.getAndroidDevice().refreshTcpipConnectivity();
 
         return result;
         }

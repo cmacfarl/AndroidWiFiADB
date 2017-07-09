@@ -1,11 +1,15 @@
 package org.firstinspires.ftc.plugins.androidstudio.util;
 
+import com.intellij.openapi.diagnostic.Logger;
+
 /**
  * {@link EventLog} provides access to a log that's visible inside of Android Studio.
  */
 @SuppressWarnings("WeakerAccess")
 public class EventLog
     {
+    protected static Logger logger = Logger.getInstance(EventLog.class);
+
     public static void notify(String tag, String message)
         {
         notify(tag, "%s", message);
@@ -25,7 +29,9 @@ public class EventLog
         {
         String header = String.format("%s/I", tag);
         String message = String.format(format, args);
-        NotificationHelper.info(String.format("%s: %s", header, message));
+        String line = String.format("%s: %s", header, message);
+        logger.info(line);
+        NotificationHelper.info(line);
         }
 
     public static void dd(String tag, String message)
@@ -36,7 +42,9 @@ public class EventLog
         {
         String header = String.format("%s/D", tag);
         String message = String.format(format, args);
-        NotificationHelper.info(String.format("%s: %s", header, message));
+        String line = String.format("%s: %s", header, message);
+        logger.debug(line);
+        NotificationHelper.info(line);
         }
 
 
@@ -57,9 +65,10 @@ public class EventLog
     public static void ee(String tag, Throwable throwable, String format, Object...args)
         {
         String line = formatLine(tag, format, args);
-        NotificationHelper.error(line);
         if (throwable != null)
             {
+            NotificationHelper.error(line);
+            logger.error(line, throwable);
             NotificationHelper.error(String.format("exception: %s: %s", throwable.getClass().getSimpleName(), throwable.getMessage()));
             logStackFrames(tag, throwable.getStackTrace());
             for (throwable = throwable.getCause(); throwable != null; throwable = throwable.getCause())
@@ -67,6 +76,11 @@ public class EventLog
                 NotificationHelper.error(String.format("caused by: %s: %s", throwable.getClass().getSimpleName(), throwable.getMessage()));
                 logStackFrames(tag, throwable.getStackTrace());
                 }
+            }
+        else
+            {
+            NotificationHelper.error(line);
+            logger.error(line);
             }
         }
 

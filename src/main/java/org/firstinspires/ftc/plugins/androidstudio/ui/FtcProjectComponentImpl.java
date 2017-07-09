@@ -1,6 +1,6 @@
 package org.firstinspires.ftc.plugins.androidstudio.ui;
 
-import com.android.ddmlib.AndroidDebugBridge;
+import com.android.tools.idea.ddms.adb.AdbService;
 import com.intellij.openapi.components.PersistentStateComponent;
 import com.intellij.openapi.components.State;
 import com.intellij.openapi.components.Storage;
@@ -11,6 +11,8 @@ import org.firstinspires.ftc.plugins.androidstudio.util.EventLog;
 import org.firstinspires.ftc.plugins.androidstudio.util.ThreadPool;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+
+import java.io.File;
 
 /**
  * http://www.jetbrains.org/intellij/sdk/docs/basics/plugin_structure/plugin_components.html
@@ -71,13 +73,17 @@ public class FtcProjectComponentImpl implements FtcProjectComponent, PersistentS
             stagedState = null;
             }
 
-        // Asynchronously (so as not to block the UI ) start up ADB if it's not already started
-        // Most of the methods in AndroidSdkUtils or AdbService seem not to be thread-safe, so
-        // we need to be careful. AndroidDebugBridge seems ok.
+        startAdbServer();
+        }
+
+    protected void startAdbServer()
+        {
+        /** Asynchronously (so as not to block the UI ) start up ADB if it's not already started */
         ThreadPool.getDefault().execute(() ->
             {
-            EventLog.dd(TAG, "fetching/starting ADB");
-            AndroidDebugBridge.createBridge(database.getHostAdb().getAdb().getAbsolutePath(), false);
+            File path = database.getHostAdb().getAdb();
+            EventLog.dd(TAG, "fetching/starting ADB: %s", path);
+			AdbService.getInstance().getDebugBridge(path);  // ignore returned future: we just want to kick-start the adb server
             });
         }
 
