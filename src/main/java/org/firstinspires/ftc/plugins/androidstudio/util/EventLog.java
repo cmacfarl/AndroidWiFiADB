@@ -28,6 +28,17 @@ public class EventLog
         NotificationHelper.info(String.format("%s: %s", header, message));
         }
 
+    public static void dd(String tag, String message)
+        {
+        dd(tag, "%s", message);
+        }
+    public static void dd(String tag, String format, Object...args)
+        {
+        String header = String.format("%s/D", tag);
+        String message = String.format(format, args);
+        NotificationHelper.info(String.format("%s: %s", header, message));
+        }
+
 
     public static void ee(String tag, String message)
         {

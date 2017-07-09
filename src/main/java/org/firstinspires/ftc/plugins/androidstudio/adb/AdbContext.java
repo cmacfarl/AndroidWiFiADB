@@ -80,7 +80,7 @@ public class AdbContext
         @Override
         public void clientChanged(Client client, int changeMask)
             {
-            EventLog.ii(TAG, "onClientChanged() client=%s mask=0x%08x", client.getClientData().getClientDescription(), changeMask);
+            EventLog.dd(TAG, "onClientChanged() client=%s mask=0x%08x", client.getClientData().getClientDescription(), changeMask);
             for (AndroidDebugBridge.IClientChangeListener listener : clientChangeListeners)
                 {
                 listener.clientChanged(client, changeMask);
@@ -101,7 +101,7 @@ public class AdbContext
         @Override
         public void deviceConnected(IDevice device)
             {
-            EventLog.ii(TAG, "deviceConnected() device=%s", device.getSerialNumber());
+            EventLog.dd(TAG, "deviceConnected() device=%s", device.getSerialNumber());
             for (AndroidDebugBridge.IDeviceChangeListener listener : deviceChangeListeners)
                 {
                 listener.deviceConnected(device);
@@ -111,7 +111,7 @@ public class AdbContext
         @Override
         public void deviceDisconnected(IDevice device)
             {
-            EventLog.ii(TAG, "deviceDisconnected() device=%s", device.getSerialNumber());
+            EventLog.dd(TAG, "deviceDisconnected() device=%s", device.getSerialNumber());
             for (AndroidDebugBridge.IDeviceChangeListener listener : deviceChangeListeners)
                 {
                 listener.deviceDisconnected(device);
@@ -121,7 +121,7 @@ public class AdbContext
         @Override
         public void deviceChanged(IDevice device, int changeMask)
             {
-            EventLog.ii(TAG, "deviceChagned() device=%s mask=0x%08x", device.getSerialNumber(), changeMask);
+            EventLog.dd(TAG, "deviceChagned() device=%s mask=0x%08x", device.getSerialNumber(), changeMask);
             for (AndroidDebugBridge.IDeviceChangeListener listener : deviceChangeListeners)
                 {
                 listener.deviceChanged(device, changeMask);
@@ -151,7 +151,7 @@ public class AdbContext
         @Override
         public void bridgeChanged(AndroidDebugBridge bridge)
             {
-            EventLog.ii(TAG, "bridgeChanged() bridge=%s", bridge);
+            EventLog.dd(TAG, "bridgeChanged() bridge=%s", bridge);
             synchronized (lock)
                 {
                 currentBridge = bridge;

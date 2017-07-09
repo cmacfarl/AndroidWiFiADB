@@ -40,14 +40,14 @@ public class AndroidDeviceHandle
 
     public AndroidDeviceHandle(IDevice device, AndroidDevice androidDevice)
         {
-        EventLog.ii(TAG, "open: %s %s", androidDevice.getUsbSerialNumber(), device.getSerialNumber());
+        EventLog.dd(TAG, "open: %s %s", androidDevice.getUsbSerialNumber(), device.getSerialNumber());
         this.device = device;
         this.androidDevice = androidDevice;
         }
 
     public void close()
         {
-        EventLog.ii(TAG, "close: %s %s", androidDevice.getUsbSerialNumber(), device.getSerialNumber());
+        EventLog.dd(TAG, "close: %s %s", androidDevice.getUsbSerialNumber(), device.getSerialNumber());
         androidDevice.close(this);
         }
 

@@ -1,5 +1,6 @@
 package org.firstinspires.ftc.plugins.androidstudio.ui;
 
+import com.android.ddmlib.AndroidDebugBridge;
 import com.intellij.openapi.components.PersistentStateComponent;
 import com.intellij.openapi.components.State;
 import com.intellij.openapi.components.Storage;
@@ -7,6 +8,7 @@ import com.intellij.openapi.project.Project;
 import org.firstinspires.ftc.plugins.androidstudio.Configuration;
 import org.firstinspires.ftc.plugins.androidstudio.adb.AndroidDeviceDatabase;
 import org.firstinspires.ftc.plugins.androidstudio.util.EventLog;
+import org.firstinspires.ftc.plugins.androidstudio.util.ThreadPool;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -45,7 +47,7 @@ public class FtcProjectComponentImpl implements FtcProjectComponent, PersistentS
 
     @Override public void initComponent()
         {
-        EventLog.ii(TAG, "initComponent()");
+        EventLog.dd(TAG, "initComponent()");
         }
 
     @Override public void disposeComponent()
@@ -61,19 +63,28 @@ public class FtcProjectComponentImpl implements FtcProjectComponent, PersistentS
     @Override
     public void projectOpened()
         {
-        EventLog.ii(TAG, "projectOpened()");
+        EventLog.dd(TAG, "projectOpened()");
         database = new AndroidDeviceDatabase(project);
         if (stagedState != null)
             {
             database.loadPersistentState(stagedState);
             stagedState = null;
             }
+
+        // Asynchronously (so as not to block the UI ) start up ADB if it's not already started
+        // Most of the methods in AndroidSdkUtils or AdbService seem not to be thread-safe, so
+        // we need to be careful. AndroidDebugBridge seems ok.
+        ThreadPool.getDefault().execute(() ->
+            {
+            EventLog.dd(TAG, "fetching/starting ADB");
+            AndroidDebugBridge.createBridge(database.getHostAdb().getAdb().getAbsolutePath(), false);
+            });
         }
 
     @Override
     public void projectClosed()
         {
-        EventLog.ii(TAG, "projectClosed()");
+        EventLog.dd(TAG, "projectClosed()");
         }
 
     //----------------------------------------------------------------------------------------------

@@ -7,7 +7,9 @@ import com.intellij.openapi.project.Project;
 import org.firstinspires.ftc.plugins.androidstudio.Configuration;
 import org.firstinspires.ftc.plugins.androidstudio.adb.commands.HostAdb;
 import org.firstinspires.ftc.plugins.androidstudio.util.EventLog;
+import org.jetbrains.annotations.Nullable;
 
+import java.io.File;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.util.ArrayList;
@@ -112,7 +114,7 @@ public class AndroidDeviceDatabase
                 {
                 result.androidDevices.add(androidDevice.getPersistentState());
                 }
-            EventLog.ii(TAG,"getPersistentState() count=%d", result.androidDevices.size());
+            EventLog.dd(TAG,"getPersistentState() count=%d", result.androidDevices.size());
             return new PersistentStateExternal(result);
             });
         }
@@ -120,7 +122,7 @@ public class AndroidDeviceDatabase
     public void loadPersistentState(PersistentStateExternal persistentStateExternal)
         {
         PersistentState persistentState = PersistentState.from(persistentStateExternal);
-        EventLog.ii(TAG,"loadPersistentState() count=%d", persistentState.androidDevices.size());
+        EventLog.dd(TAG,"loadPersistentState() count=%d", persistentState.androidDevices.size());
         lockWhile(() ->
             {
             assert deviceMap.isEmpty();
@@ -314,8 +316,9 @@ public class AndroidDeviceDatabase
 
     protected class BridgeChangeListener implements AndroidDebugBridge.IDebugBridgeChangeListener
         {
-        /** We get called both for creations and disconnects */
-        @Override public void bridgeChanged(AndroidDebugBridge bridge)
+        /** We get called both for creations and disconnects. The situations in which bridge
+         * can be null aren't well understood.  */
+        @Override public void bridgeChanged(@Nullable AndroidDebugBridge bridge)
             {
             synchronized (lock)
                 {

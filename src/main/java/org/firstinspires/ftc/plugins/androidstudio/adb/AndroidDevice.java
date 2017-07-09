@@ -47,7 +47,7 @@ public class AndroidDevice extends MemberwiseCloneable<AndroidDevice>
 
     public AndroidDevice(AndroidDeviceDatabase deviceDatabase, String usbSerialNumber)
         {
-        EventLog.ii(TAG, "create: %s", usbSerialNumber);
+        EventLog.dd(TAG, "create: %s", usbSerialNumber);
         this.database = deviceDatabase;
         this.usbSerialNumber = usbSerialNumber;
         }
@@ -306,7 +306,7 @@ public class AndroidDevice extends MemberwiseCloneable<AndroidDevice>
         if (listenOnTcpip() && connectAdbTcpip(inetAddress))
             {
             result = true;
-            EventLog.ii(TAG, "connected %s as %s", getUsbSerialNumber(), inetAddress);
+            EventLog.dd(TAG, "connected %s as %s", getUsbSerialNumber(), inetAddress);
             }
         return result;
         }
