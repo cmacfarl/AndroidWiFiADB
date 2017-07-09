@@ -5,14 +5,14 @@ buildscript {
 }
 
 plugins {
-  id "org.jetbrains.intellij" version "0.0.25"
+  id "org.jetbrains.intellij" version "0.2.13"
 }
 
 apply plugin: 'org.jetbrains.intellij'
 apply plugin: 'java'
 apply plugin: 'jacoco'
 
-group 'org.firstinspires.ftc.plugins'
+ group 'org.firstinspires.ftc.plugins'
 // version '0.0.40' // gets added to the file name
 
 sourceCompatibility = 1.8

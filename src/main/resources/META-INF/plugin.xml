@@ -17,7 +17,7 @@
     ]]>
   </change-notes>
 
-  <idea-version since-build="131"/>
+  <idea-version since-build="162"/>
 
   <extensions defaultExtensionNs="com.intellij">
 
