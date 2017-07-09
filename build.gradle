@@ -8,9 +8,9 @@ plugins {
   id "org.jetbrains.intellij" version "0.2.13"
 }
 
-apply plugin: 'org.jetbrains.intellij'
+/*apply plugin: 'org.jetbrains.intellij'
 apply plugin: 'java'
-apply plugin: 'jacoco'
+apply plugin: 'jacoco'*/
 
  group 'org.firstinspires.ftc.plugins'
 // version '0.0.40' // gets added to the file name
@@ -21,15 +21,18 @@ repositories {
   mavenCentral()
 }
 
+// https://github.com/JetBrains/gradle-intellij-plugin
 intellij {
-  version '14.1.5'
+  // https://blog.jetbrains.com/blog/2016/03/09/jetbrains-toolbox-release-and-versioning-changes/
+  // http://www.jetbrains.org/intellij/sdk/docs/basics/getting_started/build_number_ranges.html
+  version '2016.2'
   pluginName 'FtcAndroidStudioPlugin'
   plugins 'android'
   updateSinceUntilBuild false
 }
 
 dependencies {
-  compile 'junit:junit:4.12'
-  compile 'org.mockito:mockito-all:1.10.19'
+  // compile 'junit:junit:4.12'
+  // compile 'org.mockito:mockito-all:1.10.19'
 }
 
