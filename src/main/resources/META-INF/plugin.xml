@@ -2,30 +2,18 @@
 <idea-plugin>
   <id>org.firstinspires.ftc.plugins.androidstudio</id>
   <name>FTC Android Studio plugin</name>
-  <version>0.0.41</version>
-  <vendor email="pedrovicente.gomez at gmail dot com" url="http://www.github.com/pedrovgs">
+  <version>0.0.51</version>
+  <vendor email="bob@theatkinsons.org" url="http://www.github.com/ftctechnh/ftc_app">
     Pedro Vicente Gomez Sanchez
   </vendor>
 
   <description><![CDATA[
-      Provides an action which allow you quickly connect your Android device over WiFi to install, run and debug your applications without a USB connected by pressing one button.
-      <br>
-      Connect your device using a USB cable and press the Android WiFi ADB button. Once the device be connected over WiFi you'll see an IntelliJ/Android Studio notification. Now you can disconnect your USB cable and enjoy deploying, running and debugging your applications over WiFi.
-      <br>
-      The version 2.0 enables a window to check which of your devices are connected or not and connect/disconnect it manually if needed.
+      FTC Android Studio Plugin
     ]]>
   </description>
 
   <change-notes><![CDATA[
-      0.0.41: Begin migration
-      2.4: Generate the plugin binary using Java 1.6 instead of Java 1.8.<br>
-      2.3: Update the main action configuration to be shown in the NavBarToolBar and also in the MainToolBar if the first on is disabled.<br>
-      2.2: Update error message shown when the device is not properly connected.<br>
-      2.1: Fix bug associated to some device installations where the adb installation was not recognized.<br>
-      2.0: Add a new Android WiFi ADB control panel showing all the devices connected by USB to be able to connect/disconnect devices individually.<br>
-      1.2: Remove the usage of the ANDROID_HOME environment variable. This variable is not needed now.<br>
-      1.1: Fixes for Windows and Linux.<br>
-      1.0: Initial version.<br>
+      0.0.0: Initial version.<br>
     ]]>
   </change-notes>
 
@@ -56,6 +44,7 @@
 
   <depends>org.jetbrains.android</depends>
 
+  <!-- http://www.jetbrains.org/intellij/sdk/docs/tutorials/action_system/grouping_action.html -->
   <actions>
 
     <action id="AndroidWiFiADB"

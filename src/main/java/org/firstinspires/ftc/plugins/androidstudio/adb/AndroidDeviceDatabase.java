@@ -5,10 +5,13 @@ import com.android.ddmlib.IDevice;
 import com.intellij.openapi.project.Project;
 import org.firstinspires.ftc.plugins.androidstudio.Configuration;
 import org.firstinspires.ftc.plugins.androidstudio.adb.commands.HostAdb;
+import org.firstinspires.ftc.plugins.androidstudio.util.EventLog;
 
 import java.net.InetAddress;
+import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -33,13 +36,19 @@ public class AndroidDeviceDatabase
     // State
     //----------------------------------------------------------------------------------------------
 
+    public static final String TAG = "AndroidDeviceDatabase";
+
     protected final ReentrantLock lock = new ReentrantLock();
     protected final HostAdb hostAdb;
     protected final AdbContext adbContext;
     protected final DeviceChangeListener deviceChangeListener = new DeviceChangeListener();
+    protected final BridgeChangeListener bridgeChangeListener = new BridgeChangeListener();
+
+    protected AndroidDebugBridge currentBridge;
 
     /** keyed by USB serial number */
     protected final Map<String, AndroidDevice> deviceMap = new HashMap<>();
+
     /** keyed by (vanilla) serial number */
     protected final Map<String, AndroidDeviceHandle> openedDeviceMap = new HashMap<>();
 
@@ -50,15 +59,54 @@ public class AndroidDeviceDatabase
     // Construction
     //----------------------------------------------------------------------------------------------
 
-    public AndroidDeviceDatabase(Project project, AdbContext adbContext)
+    public AndroidDeviceDatabase(Project project)
         {
         this.hostAdb = new HostAdb(project);
-        this.adbContext = adbContext;
+        this.adbContext = AdbContext.getInstance();
         this.adbContext.addDeviceChangeListener(deviceChangeListener);
+        this.adbContext.addBridgeChangeListener(bridgeChangeListener);
         }
 
     //----------------------------------------------------------------------------------------------
-    // Operations
+    // Loading and saving
+    //----------------------------------------------------------------------------------------------
+
+    public static class PersistentState
+        {
+        ArrayList<AndroidDevice.PersistentState> androidDevices = new ArrayList<>();
+        }
+
+    public PersistentState getPersistentState()
+        {
+        return lockWhile(() ->
+            {
+            PersistentState result = new PersistentState();
+            for (AndroidDevice androidDevice : deviceMap.values())
+                {
+                result.androidDevices.add(androidDevice.getPersistentState());
+                }
+            EventLog.ii(TAG,"getPersistentState() count=%d", result.androidDevices.size());
+            return result;
+            });
+        }
+
+    public void loadPersistentState(PersistentState persistentState)
+        {
+        EventLog.ii(TAG,"loadPersistentState() count=%d", persistentState.androidDevices.size());
+        lockWhile(() ->
+            {
+            assert deviceMap.isEmpty();
+            assert openedDeviceMap.isEmpty();
+
+            for (AndroidDevice.PersistentState androidDeviceData : persistentState.androidDevices)
+                {
+                deviceMap.put(androidDeviceData.usbSerialNumber, new AndroidDevice(this, androidDeviceData));
+                }
+            });
+        }
+
+    //----------------------------------------------------------------------------------------------
+    // Accessing
     //----------------------------------------------------------------------------------------------
 
     public HostAdb getHostAdb()
@@ -149,7 +197,7 @@ public class AndroidDeviceDatabase
         return lockWhile(() ->
             {
             AndroidDevice androidDevice = deviceMap.computeIfAbsent(getUsbSerialNumber(device),
-                    (usbSerialNumber) -> new AndroidDevice(usbSerialNumber, AndroidDeviceDatabase.this));
+                    (usbSerialNumber) -> new AndroidDevice(AndroidDeviceDatabase.this, usbSerialNumber));
             AndroidDeviceHandle handle = androidDevice.open(device);
             openedDeviceMap.put(device.getSerialNumber(), handle);
             return handle;
@@ -170,15 +218,27 @@ public class AndroidDeviceDatabase
             });
         }
 
-    public void ensureTcpipConnectivity()
+    public void refreshTcpipConnectivity()
         {
+        List<AndroidDevice> androidDevices = new ArrayList<>();
         lockWhile(() ->
             {
-            for (AndroidDevice androidDevice : deviceMap.values())
-                {
-                androidDevice.ensureTcpipConnectivity();
-                }
+            androidDevices.addAll(deviceMap.values());
             });
+
+        for (AndroidDevice androidDevice : androidDevices)
+            {
+            lockWhile(androidDevice::refreshTcpipConnectivity);
+            }
+        }
+
+    public void noteDeviceConnectedTcpip(AndroidDevice androidDevice, InetAddress inetAddress)
+        {
+        noteDeviceConnectedTcpip(androidDevice, new InetSocketAddress(inetAddress, Configuration.ADB_DAEMON_PORT));
+        }
+    public void noteDeviceConnectedTcpip(AndroidDevice androidDevice, InetSocketAddress inetSocketAddress)
+        {
+        // TODO
         }
 
     //----------------------------------------------------------------------------------------------
@@ -223,6 +283,23 @@ public class AndroidDeviceDatabase
     //----------------------------------------------------------------------------------------------
     // Notification
     //----------------------------------------------------------------------------------------------
+
+    protected class BridgeChangeListener implements AndroidDebugBridge.IDebugBridgeChangeListener
+        {
+        /** We get called both for creations and disconnects */
+        @Override public void bridgeChanged(AndroidDebugBridge bridge)
+            {
+            synchronized (lock)
+                {
+                AndroidDebugBridge oldBridge = currentBridge;
+                currentBridge = bridge;
+                if (currentBridge != oldBridge)
+                    {
+                    // ....
+                    }
+                }
+            }
+        }
 
     protected class DeviceChangeListener implements AndroidDebugBridge.IDeviceChangeListener
         {

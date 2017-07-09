@@ -3,6 +3,7 @@ package org.firstinspires.ftc.plugins.androidstudio.adb.commands;
 import com.android.ddmlib.AndroidDebugBridge;
 import com.android.ddmlib.IDevice;
 import com.intellij.openapi.project.Project;
+import org.firstinspires.ftc.plugins.androidstudio.Configuration;
 import org.jetbrains.android.sdk.AndroidSdkUtils;
 import org.jetbrains.annotations.Nullable;
 
@@ -10,6 +11,7 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.util.Locale;
 import java.util.stream.Collectors;
@@ -43,6 +45,11 @@ public class HostAdb
     // Operations
     //----------------------------------------------------------------------------------------------
 
+    public boolean tcpip(IDevice device)
+        {
+        return tcpip(device, Configuration.ADB_DAEMON_PORT);
+        }
+
     /** Note that a successful response indicates only that the listening
      * request has been initiated, not that it has been completed */
     public boolean tcpip(IDevice device, int port)
@@ -62,6 +69,11 @@ public class HostAdb
             error: device '2a2839x9' not found
          */
         return !result.contains("error");   // hope that no serial number has 'error' in it
+        }
+
+    public boolean connect(InetAddress inetAddress)
+        {
+        return connect(new InetSocketAddress(inetAddress, Configuration.ADB_DAEMON_PORT));
         }
 
     public boolean connect(InetSocketAddress inetSocketAddress)

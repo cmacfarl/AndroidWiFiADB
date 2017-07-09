@@ -8,7 +8,7 @@ import java.net.UnknownHostException;
  */
 public class Misc
     {
-    public static InetAddress ipAddress(String literalAddress)
+    public static InetAddress parseInetAddress(String literalAddress)
         {
         try {
             return InetAddress.getByName(literalAddress);

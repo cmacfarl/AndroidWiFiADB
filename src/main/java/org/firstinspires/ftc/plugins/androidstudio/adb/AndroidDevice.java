@@ -2,9 +2,13 @@ package org.firstinspires.ftc.plugins.androidstudio.adb;
 
 import com.android.ddmlib.IDevice;
 import org.firstinspires.ftc.plugins.androidstudio.Configuration;
+import org.firstinspires.ftc.plugins.androidstudio.util.EventLog;
 import org.firstinspires.ftc.plugins.androidstudio.util.MemberwiseCloneable;
+import org.firstinspires.ftc.plugins.androidstudio.util.Misc;
+import org.firstinspires.ftc.plugins.androidstudio.util.StringUtils;
 import org.jetbrains.annotations.NotNull;
 
+import java.io.IOException;
 import java.net.InetAddress;
 import java.util.HashMap;
 import java.util.Map;
@@ -23,22 +27,35 @@ public class AndroidDevice extends MemberwiseCloneable<AndroidDevice>
     // State
     //----------------------------------------------------------------------------------------------
 
+    public static final String TAG = "AndroidDevice";
+
     protected final Object                  lock = new Object();
-    protected final AndroidDeviceDatabase   database;
     protected final String                  usbSerialNumber;
+    protected final AndroidDeviceDatabase   database;
+
+    protected       InetAddress             inetAddressLastConnected = null;
+    protected       String                  wifiDirectName = null;
 
     /** Map of serial number -> device handle. If there's more than one, typically
      * one of them is over USB and the other is over wifi */
     protected final Map<String, AndroidDeviceHandle> handles = new HashMap<>();
 
+
     //----------------------------------------------------------------------------------------------
     // Construction
     //----------------------------------------------------------------------------------------------
 
-    public AndroidDevice(String usbSerialNumber, AndroidDeviceDatabase deviceDatabase)
+    public AndroidDevice(AndroidDeviceDatabase deviceDatabase, String usbSerialNumber)
         {
-        this.usbSerialNumber = usbSerialNumber;
+        EventLog.ii(TAG, "create: %s", usbSerialNumber);
         this.database = deviceDatabase;
+        this.usbSerialNumber = usbSerialNumber;
+        }
+
+    public AndroidDevice(AndroidDeviceDatabase database, PersistentState persistentState)
+        {
+        this(database, persistentState.usbSerialNumber);
+        loadPersistentState(persistentState);
         }
 
     // Must be idempotent
@@ -46,8 +63,17 @@ public class AndroidDevice extends MemberwiseCloneable<AndroidDevice>
         {
         synchronized (lock)
             {
-            return handles.computeIfAbsent(device.getSerialNumber(),
+            AndroidDeviceHandle result = handles.computeIfAbsent(device.getSerialNumber(),
                     (serialNumber) -> new AndroidDeviceHandle(device, this));
+
+            // Remember the latest name for this fellow that we have
+            String wifiDirectName = result.getWifiDirectName();
+            if (wifiDirectName != null)
+                {
+                AndroidDevice.this.wifiDirectName = wifiDirectName;
+                }
+
+            return result;
             }
         }
 
@@ -60,8 +86,60 @@ public class AndroidDevice extends MemberwiseCloneable<AndroidDevice>
         }
 
     //----------------------------------------------------------------------------------------------
+    // Loading and saving
+    //----------------------------------------------------------------------------------------------
+
+    public static class PersistentState
+        {
+        String      usbSerialNumber = "";
+        String      wifiDirectName = "";
+        String      inetAddressLastConnected = "";
+
+        public PersistentState()
+            {
+            }
+        public PersistentState(AndroidDevice androidDevice)
+            {
+            this();
+            this.usbSerialNumber = androidDevice.usbSerialNumber;
+            this.wifiDirectName = androidDevice.wifiDirectName != null ? androidDevice.wifiDirectName : "";
+            if (androidDevice.inetAddressLastConnected != null)
+                {
+                this.inetAddressLastConnected = androidDevice.inetAddressLastConnected.toString();
+                }
+            }
+
+        public InetAddress getInetAddressLastConnected()
+            {
+            return Misc.parseInetAddress(inetAddressLastConnected);
+            }
+
+        }
+
+    public PersistentState getPersistentState()
+        {
+        return new PersistentState(this);
+        }
+
+    public void loadPersistentState(PersistentState persistentState)
+        {
+        assert this.usbSerialNumber.equals(persistentState.usbSerialNumber);
+        this.inetAddressLastConnected = StringUtils.isNullOrEmpty(persistentState.inetAddressLastConnected)
+                ? null
+                : Misc.parseInetAddress(persistentState.inetAddressLastConnected);
+        this.wifiDirectName = StringUtils.isNullOrEmpty(persistentState.wifiDirectName)
+                ? null
+                : persistentState.wifiDirectName;
+        }
+
+    //----------------------------------------------------------------------------------------------
     // Accessing
     //----------------------------------------------------------------------------------------------
+
+    public String getUsbSerialNumber()
+        {
+        return usbSerialNumber;
+        }
 
     public AndroidDeviceDatabase getDatabase()
         {
@@ -76,14 +154,16 @@ public class AndroidDevice extends MemberwiseCloneable<AndroidDevice>
             }
         }
 
+    /** Is at least one of our handles already connected using TCPIP? */
     public boolean isOpenUsingTcpip()
         {
         return predicateOverHandles(AndroidDeviceHandle::isTcpip);
         }
 
-    public boolean isOpenWithWifiDirectGroupOwner()
+    /** Is the device the owner of a wifi direct group? */
+    public boolean isWifiDirectGroupOwner()
         {
-        return predicateOverHandles(AndroidDeviceHandle::isWifiDirectGroupOwner);
+        return anyHandleBool(AndroidDeviceHandle::isWifiDirectGroupOwner);
         }
 
     public InetAddress getWlanAddress()
@@ -91,11 +171,20 @@ public class AndroidDevice extends MemberwiseCloneable<AndroidDevice>
         return getDeviceProperty(AndroidDeviceHandle::getWlanAddress);
         }
 
-    public boolean isAdbListeningOnTcpip()
+    public boolean isListeningOnTcpip()
         {
-        return getDeviceProperty(AndroidDeviceHandle::isAdbListeningOnTcpip);
+        return getDeviceProperty(AndroidDeviceHandle::isListeningOnTcpip);
         }
 
+    public String getDisplayName()
+        {
+        String result = wifiDirectName;
+        if (result == null)
+            {
+            result = usbSerialNumber;
+            }
+        return result;
+        }
 
     //----------------------------------------------------------------------------------------------
     // Mapping over handles
@@ -162,35 +251,92 @@ public class AndroidDevice extends MemberwiseCloneable<AndroidDevice>
     // Commands
     //----------------------------------------------------------------------------------------------
 
-    public void ensureTcpipConnectivity()
+    public void refreshTcpipConnectivity()
         {
         if (!isOpen())
             return;
 
         if (isOpenUsingTcpip())
             {
-
+            // ADB has a TCPIP connection for this guy; we're not going to add one
             }
         else
             {
             // ADB doesn't already have a TCPIP connection for him. We'll try to make one if we can.
             //
-            // Can we reach him over WifiDirect? If so, use that
-            //
-            if (!database.isWifiDirectIPAddressConnected()
-                    && AndroidDeviceHandle.isPingable(Configuration.WIFI_DIRECT_GROUP_OWNER_ADDRESS)
-                    && isOpenWithWifiDirectGroupOwner()
-                    && adbListenOnTcpip())
-                {
+            boolean connected = false;
 
+            if (!connected)
+                {
+                // Can we reach him over WifiDirect? If so, use that
+                if (!database.isWifiDirectIPAddressConnected()
+                        && isPingable(Configuration.WIFI_DIRECT_GROUP_OWNER_ADDRESS)
+                        && isWifiDirectGroupOwner())
+                    {
+                    if (listenOnTcpip() && connectAdbTcpip(Configuration.WIFI_DIRECT_GROUP_OWNER_ADDRESS))
+                        {
+                        connected = listenAndConnect(Configuration.WIFI_DIRECT_GROUP_OWNER_ADDRESS);
+                        }
+                    }
+                }
+
+            if (!connected)
+                {
+                // Is he on some other (infrastructure) wifi network that we can reach him through?
+                InetAddress inetAddress = getWlanAddress();
+                if (inetAddress != null && isPingable(inetAddress))
+                    {
+                    if (listenOnTcpip() && connectAdbTcpip(inetAddress))
+                        {
+                        connected = listenAndConnect(inetAddress);
+                        }
+                    }
+                }
+
+            if (!connected)
+                {
+                EventLog.notify(TAG, "unable to connect to %s", getUsbSerialNumber());
                 }
             }
         }
 
-    public boolean adbListenOnTcpip()
+    protected boolean listenAndConnect(InetAddress inetAddress)
         {
         boolean result = false;
-        if (isAdbListeningOnTcpip())
+        if (listenOnTcpip() && connectAdbTcpip(inetAddress))
+            {
+            result = true;
+            EventLog.ii(TAG, "connected %s as %s", getUsbSerialNumber(), inetAddress);
+            }
+        return result;
+        }
+
+    public boolean isPingable(InetAddress inetAddress)
+        {
+        try {
+            return inetAddress.isReachable(Configuration.msAdbTimeoutFast);
+            }
+        catch (IOException e)
+            {
+            return false;
+            }
+        }
+
+    public boolean connectAdbTcpip(InetAddress inetAddress)
+        {
+        boolean result = database.getHostAdb().connect(inetAddress);
+        if (result)
+            {
+            inetAddressLastConnected = inetAddress;
+            database.noteDeviceConnectedTcpip(this, inetAddress);
+            }
+        return result;
+        }
+
+    public boolean listenOnTcpip()
+        {
+        boolean result = false;
+        if (isListeningOnTcpip())
             {
             result = true;
             }

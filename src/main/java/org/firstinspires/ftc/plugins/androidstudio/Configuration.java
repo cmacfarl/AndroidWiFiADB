@@ -32,7 +32,7 @@ public class Configuration
 
     public static final String SETTING_WIFI_P2P_DEVICE_NAME = "wifi_p2p_device_name";
 
-    public static final InetAddress WIFI_DIRECT_GROUP_OWNER_ADDRESS = Misc.ipAddress("192.168.49.1");
+    public static final InetAddress WIFI_DIRECT_GROUP_OWNER_ADDRESS = Misc.parseInetAddress("192.168.49.1");
     public static final int ADB_DAEMON_PORT = 5555;
 
     public static int msAdbTimeoutSlow = 2000;

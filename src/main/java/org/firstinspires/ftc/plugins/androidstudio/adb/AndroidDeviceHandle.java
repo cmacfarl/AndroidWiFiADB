@@ -4,11 +4,11 @@ import com.android.ddmlib.IDevice;
 import org.firstinspires.ftc.plugins.androidstudio.Configuration;
 import org.firstinspires.ftc.plugins.androidstudio.adb.commands.GetSettingCommand;
 import org.firstinspires.ftc.plugins.androidstudio.adb.commands.IfConfigCommand;
+import org.firstinspires.ftc.plugins.androidstudio.util.EventLog;
 import org.firstinspires.ftc.plugins.androidstudio.util.Misc;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import java.io.IOException;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.concurrent.ExecutionException;
@@ -40,12 +40,14 @@ public class AndroidDeviceHandle
 
     public AndroidDeviceHandle(IDevice device, AndroidDevice androidDevice)
         {
+        EventLog.ii(TAG, "open: %s %s", androidDevice.getUsbSerialNumber(), device.getSerialNumber());
         this.device = device;
         this.androidDevice = androidDevice;
         }
 
     public void close()
         {
+        EventLog.ii(TAG, "close: %s %s", androidDevice.getUsbSerialNumber(), device.getSerialNumber());
         androidDevice.close(this);
         }
 
@@ -152,7 +154,7 @@ public class AndroidDeviceHandle
         {
         if (isTcpip())
             {
-            return Misc.ipAddress(getSerialNumber());
+            return Misc.parseInetAddress(getSerialNumber());
             }
         return null;
         }
@@ -177,43 +179,33 @@ public class AndroidDeviceHandle
         throw new RuntimeException("command failed");
         }
 
-    public String getUserIdentifier()
-        {
-        String result = getWifiDirectName();
-        if (result==null) result = getUsbSerialNumber();
-        return result;
-        }
-
-    public static boolean isPingable(InetAddress inetAddress)
-        {
-        try {
-            return inetAddress.isReachable(Configuration.msAdbTimeoutFast);
-            }
-        catch (IOException e)
-            {
-            return false;
-            }
-        }
-
-    public boolean isAdbListeningOnTcpip()
+    public boolean isListeningOnTcpip()
         {
         String value = getStringProperty(Configuration.PROP_ADB_TCP_PORT);
         return value != null && Integer.parseInt(value) != 0;
         }
-    public boolean isAdbListeningOnTcpipPort(int port)
+    public boolean isListeningOnTcpip(int port)
         {
         return Integer.toString(port).equals(getStringProperty(Configuration.PROP_ADB_TCP_PORT));
         }
     public boolean listenOnTcpip()
         {
-        return androidDevice.getDatabase().getHostAdb().tcpip(device, Configuration.ADB_DAEMON_PORT);
+        return listenOnTcpip(Configuration.ADB_DAEMON_PORT);
+        }
+    public boolean listenOnTcpip(int port)
+        {
+        return androidDevice.getDatabase().getHostAdb().tcpip(device, port);
         }
     public boolean awaitListeningOnTcpip(long timeout, TimeUnit timeUnit)
+        {
+        return awaitListeningOnTcpip(Configuration.ADB_DAEMON_PORT, timeout, timeUnit);
+        }
+    public boolean awaitListeningOnTcpip(int port, long timeout, TimeUnit timeUnit)
         {
         long deadline = nsNow() + timeUnit.toNanos(timeout);
         while (nsNow() <= deadline)
             {
-            if (isAdbListeningOnTcpip())
+            if (isListeningOnTcpip(port))
                 {
                 return true;
                 }
@@ -225,7 +217,6 @@ public class AndroidDeviceHandle
         {
         return System.nanoTime();
         }
-
 
     //----------------------------------------------------------------------------------------------
     // Low level accessing

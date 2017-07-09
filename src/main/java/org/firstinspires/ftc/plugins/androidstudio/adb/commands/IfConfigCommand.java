@@ -37,7 +37,7 @@ public class IfConfigCommand extends AdbShellCommand
         Matcher matcher = patternFindInetAddr.matcher(receiver.getResult());
         if (matcher.find())
             {
-            return Misc.ipAddress(matcher.group(1));
+            return Misc.parseInetAddress(matcher.group(1));
             }
         throw new RuntimeException("internal error");
         }

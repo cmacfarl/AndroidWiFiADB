@@ -4,8 +4,8 @@ import com.intellij.openapi.components.PersistentStateComponent;
 import com.intellij.openapi.components.State;
 import com.intellij.openapi.components.Storage;
 import com.intellij.openapi.project.Project;
-import org.firstinspires.ftc.plugins.androidstudio.adb.AdbForProject;
 import org.firstinspires.ftc.plugins.androidstudio.Configuration;
+import org.firstinspires.ftc.plugins.androidstudio.adb.AndroidDeviceDatabase;
 import org.firstinspires.ftc.plugins.androidstudio.util.EventLog;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -15,7 +15,7 @@ import org.jetbrains.annotations.Nullable;
  */
 @SuppressWarnings("WeakerAccess")
 @State(name="FtcProjectComponent", storages = { @Storage(file = Configuration.XML_STATE_FILE_NAME) } )
-public class FtcProjectComponentImpl implements FtcProjectComponent, PersistentStateComponent<FtcProjectComponentImpl.State>
+public class FtcProjectComponentImpl implements FtcProjectComponent, PersistentStateComponent<AndroidDeviceDatabase.PersistentState>
     {
     //----------------------------------------------------------------------------------------------
     // State
@@ -24,8 +24,8 @@ public class FtcProjectComponentImpl implements FtcProjectComponent, PersistentS
     public static final String TAG = "FtcProjectComponent";
 
     protected final Project project;
-    protected State state;
-    protected AdbForProject adbForProject;
+    protected       AndroidDeviceDatabase database;
+    protected       AndroidDeviceDatabase.PersistentState stagedState = null;
 
     // http://www.jetbrains.org/intellij/sdk/docs/basics/persisting_state_of_components.html
     public static class State
@@ -40,8 +40,8 @@ public class FtcProjectComponentImpl implements FtcProjectComponent, PersistentS
     public FtcProjectComponentImpl(Project project)
         {
         this.project = project;
-        this.state = new State();
-        this.state.value = "barney";
+        this.database = null;
+        this.stagedState = null;
         }
 
     //----------------------------------------------------------------------------------------------
@@ -50,7 +50,7 @@ public class FtcProjectComponentImpl implements FtcProjectComponent, PersistentS
 
     @Override public void initComponent()
         {
-        EventLog.ii(TAG, project, "initComponent()");
+        EventLog.ii(TAG, "initComponent()");
         }
 
     @Override public void disposeComponent()
@@ -66,14 +66,19 @@ public class FtcProjectComponentImpl implements FtcProjectComponent, PersistentS
     @Override
     public void projectOpened()
         {
-        EventLog.ii(TAG, project, "projectOpened()");
-        this.adbForProject = new AdbForProject(this.project);
+        EventLog.ii(TAG, "projectOpened()");
+        database = new AndroidDeviceDatabase(project);
+        if (stagedState != null)
+            {
+            database.loadPersistentState(stagedState);
+            this.stagedState = null;
+            }
         }
 
     @Override
     public void projectClosed()
         {
-        EventLog.ii(TAG, project, "projectClosed()");
+        EventLog.ii(TAG, "projectClosed()");
         }
 
     //----------------------------------------------------------------------------------------------
@@ -83,15 +88,21 @@ public class FtcProjectComponentImpl implements FtcProjectComponent, PersistentS
     //----------------------------------------------------------------------------------------------
 
     @Override @Nullable
-    public State getState()
+    public AndroidDeviceDatabase.PersistentState getState()
         {
-        EventLog.ii(TAG, project, "getState()");
-        return state;
+        return database == null ? new AndroidDeviceDatabase.PersistentState() : database.getPersistentState();
         }
 
-    @Override public void loadState(State state)
+    @Override public void loadState(AndroidDeviceDatabase.PersistentState persistentState)
         {
-        EventLog.ii(TAG, project, "loadState() value=%s", state.value);
-        this.state = state;
+        if (database==null)
+            {
+            stagedState = persistentState;
+            }
+        else
+            {
+            stagedState = null;
+            database.loadPersistentState(persistentState);
+            }
         }
     }
