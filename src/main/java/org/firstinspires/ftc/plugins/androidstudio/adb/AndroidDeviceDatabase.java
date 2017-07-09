@@ -4,6 +4,7 @@ import com.android.ddmlib.AndroidDebugBridge;
 import com.android.ddmlib.IDevice;
 import com.google.gson.Gson;
 import com.intellij.openapi.project.Project;
+import kotlin.Pair;
 import org.firstinspires.ftc.plugins.androidstudio.Configuration;
 import org.firstinspires.ftc.plugins.androidstudio.adb.commands.HostAdb;
 import org.firstinspires.ftc.plugins.androidstudio.util.EventLog;
@@ -17,6 +18,7 @@ import java.io.PrintStream;
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
@@ -53,7 +55,7 @@ public class AndroidDeviceDatabase
 
     protected final ReentrantLock deviceLock = new ReentrantLock();
     protected final ReentrantLock pendLock = new ReentrantLock();
-    protected final ArrayList<Runnable> pendingOperations = new ArrayList<>();
+    protected final ArrayList<Pair<String,Runnable>> pendingOperations = new ArrayList<>();
 
     /** keyed by USB serial number. 'concurrent' so we can delete while iterating */
     protected final Map<String, AndroidDevice> deviceMap = new ConcurrentHashMap<>();
@@ -231,8 +233,9 @@ public class AndroidDeviceDatabase
                         pendLockTaken = true;
                         while (!pendingOperations.isEmpty())
                             {
-                            EventLog.dd(TAG, "running pending op");
-                            pendingOperations.remove(0).run();
+                            Pair<String,Runnable> pair = pendingOperations.remove(0);
+                            EventLog.dd(TAG, "running pending op: %s", pair.component1());
+                            pair.component2().run();
                             }
                         }
                     }
@@ -254,7 +257,7 @@ public class AndroidDeviceDatabase
             }
         }
 
-    protected void lockAndRunOrPend(Runnable runnable)
+    protected void lockAndRunOrPend(String tag, Runnable runnable)
         {
         pendLock.lock();
         boolean pendLockTaken = true;
@@ -274,8 +277,8 @@ public class AndroidDeviceDatabase
                 }
             else
                 {
-                EventLog.dd(TAG, "pending op");
-                pendingOperations.add(runnable);
+                EventLog.dd(TAG, "pending op: %s", tag);
+                pendingOperations.add(new Pair<>(tag, runnable));
                 }
             }
         finally
@@ -465,12 +468,12 @@ public class AndroidDeviceDatabase
     // Be smart to avoid deadlocks
     protected void openOrPend(IDevice device)
         {
-        lockAndRunOrPend(() -> open(device));
+        lockAndRunOrPend(String.format(Locale.ROOT,"open(%s)", device.getSerialNumber()), () -> open(device));
         }
 
     // Be smart to avoid deadlocks
     protected void closeOrPend(IDevice device)
         {
-        lockAndRunOrPend(() -> close(device));
+        lockAndRunOrPend(String.format(Locale.ROOT,"close(%s)", device.getSerialNumber()), () -> close(device));
         }
     }

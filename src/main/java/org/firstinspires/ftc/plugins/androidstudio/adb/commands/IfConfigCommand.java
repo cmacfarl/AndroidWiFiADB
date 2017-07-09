@@ -3,9 +3,11 @@ package org.firstinspires.ftc.plugins.androidstudio.adb.commands;
 import com.android.ddmlib.IDevice;
 import org.firstinspires.ftc.plugins.androidstudio.adb.AndroidDeviceHandle;
 import org.firstinspires.ftc.plugins.androidstudio.util.IpUtil;
+import org.jetbrains.annotations.Nullable;
 
 import java.net.InetAddress;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
 import java.util.regex.Matcher;
@@ -32,14 +34,18 @@ public class IfConfigCommand extends AdbShellCommand
     protected static Pattern patternFindInetAddr = Pattern.compile(String.format(" ip (%s)", AndroidDeviceHandle.patternIpAddress));
     protected static Pattern patternFindFlags = Pattern.compile("flags \\[([a-zA-Z ]*)\\]");
 
-    public InetAddress getInetAddress()
+    public @Nullable InetAddress getInetAddress()
         {
         Matcher matcher = patternFindInetAddr.matcher(receiver.getResult());
         if (matcher.find())
             {
             return IpUtil.parseInetAddress(matcher.group(1));
             }
-        throw new RuntimeException("internal error");
+        else
+            {
+            // On a driver station, for example, this may return 'p2p0: Cannot assign requested address'
+            }
+        return null;
         }
 
     public List<String> getFlags()
@@ -50,7 +56,7 @@ public class IfConfigCommand extends AdbShellCommand
             String[] splits = matcher.group(1).toLowerCase(Locale.ROOT).split(" ");
             return Arrays.asList(splits);
             }
-        throw new RuntimeException("internal error");
+        return Collections.emptyList();
         }
 
     public boolean isUp()

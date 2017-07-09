@@ -2,6 +2,8 @@ package org.firstinspires.ftc.plugins.androidstudio.util;
 
 import com.intellij.openapi.diagnostic.Logger;
 
+import java.util.Locale;
+
 /**
  * {@link EventLog} provides access to a log that's visible inside of Android Studio.
  */
@@ -20,6 +22,11 @@ public class EventLog
         // TODO: also put in more visible location
         }
 
+    protected static String getHeader(String tag, String flag)
+        {
+        return String.format(Locale.ROOT, "%d %s/%s", Thread.currentThread().getId(), tag, flag);
+        }
+
 
     public static void ii(String tag, String message)
         {
@@ -27,7 +34,7 @@ public class EventLog
         }
     public static void ii(String tag, String format, Object...args)
         {
-        String header = String.format("%s/I", tag);
+        String header = getHeader(tag, "I");
         String message = String.format(format, args);
         String line = String.format("%s: %s", header, message);
         logger.info(line);
@@ -48,7 +55,7 @@ public class EventLog
         }
     public static void dd(Class clazz, String format, Object...args)
         {
-        String header = String.format("%s/D", clazz.getSimpleName());
+        String header = getHeader(clazz.getSimpleName(), "D");
         String message = String.format(format, args);
         String line = String.format("%s: %s", header, message);
         Logger.getInstance(clazz).info(line);
@@ -60,7 +67,7 @@ public class EventLog
         }
     public static void dd(String tag, String format, Object...args)
         {
-        String header = String.format("%s/D", tag);
+        String header = getHeader(tag, "D");
         String message = String.format(format, args);
         String line = String.format("%s: %s", header, message);
         logger.info(line);
@@ -106,7 +113,7 @@ public class EventLog
 
     private static String formatLine(String tag, String format, Object...args)
         {
-        String header = String.format("%s/E", tag);
+        String header = getHeader(tag, "E");
         String message = String.format(format, args);
         return String.format("%s: %s", header, message);
         }

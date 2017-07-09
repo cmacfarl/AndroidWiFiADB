@@ -80,11 +80,33 @@ public class AdbContext
         @Override
         public void clientChanged(Client client, int changeMask)
             {
-            EventLog.dd(TAG, "onClientChanged() client=%s mask=0x%08x", client.getClientData().getClientDescription(), changeMask);
+            EventLog.dd(TAG, "onClientChanged() client=%s mask=%s", client.getClientData().getClientDescription(), getMaskName(changeMask));
             for (AndroidDebugBridge.IClientChangeListener listener : clientChangeListeners)
                 {
                 listener.clientChanged(client, changeMask);
                 }
+            }
+
+        protected String getMaskName(int changeMask)
+            {
+            switch (changeMask)
+                {
+                case Client.CHANGE_NAME: return "CHANGE_NAME";
+                case Client.CHANGE_DEBUGGER_STATUS: return "CHANGE_DEBUGGER_STATUS";
+                case Client.CHANGE_PORT: return "CHANGE_PORT";
+                case Client.CHANGE_THREAD_MODE: return "CHANGE_THREAD_MODE";
+                case Client.CHANGE_THREAD_DATA: return "CHANGE_THREAD_DATA";
+                case Client.CHANGE_HEAP_MODE: return "CHANGE_HEAP_MODE";
+                case Client.CHANGE_HEAP_DATA: return "CHANGE_HEAP_DATA";
+                case Client.CHANGE_NATIVE_HEAP_DATA: return "CHANGE_NATIVE_HEAP_DATA";
+                case Client.CHANGE_THREAD_STACKTRACE: return "CHANGE_THREAD_STACKTRACE";
+                case Client.CHANGE_HEAP_ALLOCATIONS: return "CHANGE_HEAP_ALLOCATIONS";
+                case Client.CHANGE_HEAP_ALLOCATION_STATUS: return "CHANGE_HEAP_ALLOCATION_STATUS";
+                case Client.CHANGE_METHOD_PROFILING_STATUS: return "CHANGE_METHOD_PROFILING_STATUS";
+                case Client.CHANGE_HPROF: return "CHANGE_HPROF";
+                case Client.CHANGE_INFO: return "CHANGE_INFO";
+                }
+            return String.format("0x%08x", changeMask);
             }
         }
 
@@ -121,11 +143,22 @@ public class AdbContext
         @Override
         public void deviceChanged(IDevice device, int changeMask)
             {
-            EventLog.dd(TAG, "deviceChanged() device=%s mask=0x%08x", device.getSerialNumber(), changeMask);
+            EventLog.dd(TAG, "deviceChanged() device=%s mask=%s", device.getSerialNumber(), getMaskName(changeMask));
             for (AndroidDebugBridge.IDeviceChangeListener listener : deviceChangeListeners)
                 {
                 listener.deviceChanged(device, changeMask);
                 }
+            }
+
+        protected String getMaskName(int changeMask)
+            {
+            switch (changeMask)
+                {
+                case IDevice.CHANGE_STATE: return "CHANGE_STATE";
+                case IDevice.CHANGE_CLIENT_LIST: return "CHANGE_CLIENT_LIST";
+                case IDevice.CHANGE_BUILD_INFO: return "CHANGE_BUILD_INFO";
+                }
+            return String.format("0x%08x", changeMask);
             }
         }
 

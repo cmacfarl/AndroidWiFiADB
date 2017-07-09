@@ -181,7 +181,7 @@ public class AndroidDeviceHandle
         IfConfigCommand command = new IfConfigCommand();
         if (command.execute(device, "p2p0"))
             {
-            return command.getInetAddress().equals(Configuration.WIFI_DIRECT_GROUP_OWNER_ADDRESS) && command.isUp();
+            return Configuration.WIFI_DIRECT_GROUP_OWNER_ADDRESS.equals(command.getInetAddress()) && command.isUp();
             }
         throw new RuntimeException("command failed");
         }
