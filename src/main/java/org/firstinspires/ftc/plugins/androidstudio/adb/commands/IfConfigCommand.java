@@ -2,7 +2,7 @@ package org.firstinspires.ftc.plugins.androidstudio.adb.commands;
 
 import com.android.ddmlib.IDevice;
 import org.firstinspires.ftc.plugins.androidstudio.adb.AndroidDeviceHandle;
-import org.firstinspires.ftc.plugins.androidstudio.util.Misc;
+import org.firstinspires.ftc.plugins.androidstudio.util.IpUtil;
 
 import java.net.InetAddress;
 import java.util.Arrays;
@@ -37,7 +37,7 @@ public class IfConfigCommand extends AdbShellCommand
         Matcher matcher = patternFindInetAddr.matcher(receiver.getResult());
         if (matcher.find())
             {
-            return Misc.parseInetAddress(matcher.group(1));
+            return IpUtil.parseInetAddress(matcher.group(1));
             }
         throw new RuntimeException("internal error");
         }

@@ -5,7 +5,7 @@ import org.firstinspires.ftc.plugins.androidstudio.Configuration;
 import org.firstinspires.ftc.plugins.androidstudio.adb.commands.GetSettingCommand;
 import org.firstinspires.ftc.plugins.androidstudio.adb.commands.IfConfigCommand;
 import org.firstinspires.ftc.plugins.androidstudio.util.EventLog;
-import org.firstinspires.ftc.plugins.androidstudio.util.Misc;
+import org.firstinspires.ftc.plugins.androidstudio.util.IpUtil;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -40,14 +40,14 @@ public class AndroidDeviceHandle
 
     public AndroidDeviceHandle(IDevice device, AndroidDevice androidDevice)
         {
-        EventLog.dd(TAG, "open: %s %s", androidDevice.getUsbSerialNumber(), device.getSerialNumber());
+        EventLog.dd(TAG, "open: %s %s", androidDevice.getDisplayName(), device.getSerialNumber());
         this.device = device;
         this.androidDevice = androidDevice;
         }
 
     public void close()
         {
-        EventLog.dd(TAG, "close: %s %s", androidDevice.getUsbSerialNumber(), device.getSerialNumber());
+        EventLog.dd(TAG, "close: %s %s", androidDevice.getDebugDisplayName(), device.getSerialNumber());
         androidDevice.close(this);
         }
 
@@ -163,7 +163,7 @@ public class AndroidDeviceHandle
         {
         if (isTcpip())
             {
-            return Misc.parseInetAddress(getSerialNumber());
+            return IpUtil.parseInetAddress(getSerialNumber());
             }
         return null;
         }

@@ -4,6 +4,7 @@ import com.android.ddmlib.AndroidDebugBridge;
 import com.android.ddmlib.IDevice;
 import com.intellij.openapi.project.Project;
 import org.firstinspires.ftc.plugins.androidstudio.Configuration;
+import org.firstinspires.ftc.plugins.androidstudio.util.EventLog;
 import org.jetbrains.android.sdk.AndroidSdkUtils;
 import org.jetbrains.annotations.Nullable;
 
@@ -89,8 +90,8 @@ public class HostAdb
      * indicated address */
     public boolean connect(InetSocketAddress inetSocketAddress)
         {
-        String payload = String.format("connect %s", inetSocketAddress.toString());
-        String result = executeCommand(formCommand(null, payload));
+        String address = String.format("%s:%d", inetSocketAddress.getAddress().getHostAddress(), inetSocketAddress.getPort());
+        String result = executeCommand(formCommand(null, "connect " + address));
 
         /* Example executions:
 
@@ -104,8 +105,11 @@ public class HostAdb
             unable to connect to 192.168.49.3:5555: cannot connect to 192.168.49.3:5555: A connection attempt failed
             because the connected party did not properly respond after a period of time, or established connection
             failed because connected host has failed to respond. (10060)
+
+            C:\Users\bob>adb connect /192.168.49.1:5555
+            unable to connect to /192.168.49.1:5555: cannot resolve host '/192.168.49.1' and port 5555: No such host is known. (11001)
          */
-        return !result.contains("failed");
+        return result.contains("connected to " + address);
         }
 
     public boolean disconnect(IDevice device)
@@ -145,6 +149,7 @@ public class HostAdb
         StringBuilder result = new StringBuilder();
         try
             {
+            EventLog.dd(this, "executing: %s", command);
             Process process = Runtime.getRuntime().exec(command);
             process.waitFor();
             //

@@ -4,12 +4,14 @@ import com.android.ddmlib.IDevice;
 import org.firstinspires.ftc.plugins.androidstudio.Configuration;
 import org.firstinspires.ftc.plugins.androidstudio.util.EventLog;
 import org.firstinspires.ftc.plugins.androidstudio.util.ReentrantLockOwner;
-import org.firstinspires.ftc.plugins.androidstudio.util.Misc;
+import org.firstinspires.ftc.plugins.androidstudio.util.IpUtil;
 import org.firstinspires.ftc.plugins.androidstudio.util.StringUtils;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
-import java.io.IOException;
 import java.net.InetAddress;
+import java.net.InetSocketAddress;
+import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
@@ -35,7 +37,7 @@ public class AndroidDevice extends ReentrantLockOwner
     /** Map of serial number -> device handle. If there's more than one, typically
      * one of them is over USB and the other is over wifi */
     protected final Map<String, AndroidDeviceHandle>    handles = new ConcurrentHashMap<>();
-    protected       InetAddress                         inetAddressLastConnected = null;
+    protected       InetSocketAddress                   inetSocketAddressLastConnected = null;
     protected       String                              wifiDirectName = null;
 
     //----------------------------------------------------------------------------------------------
@@ -63,12 +65,8 @@ public class AndroidDevice extends ReentrantLockOwner
             AndroidDeviceHandle result = handles.computeIfAbsent(device.getSerialNumber(),
                     (serialNumber) -> new AndroidDeviceHandle(device, this));
 
-            // Remember the latest name for this fellow that we have
-            String wifiDirectName = result.getWifiDirectName();
-            if (wifiDirectName != null)
-                {
-                AndroidDevice.this.wifiDirectName = wifiDirectName;
-                }
+            // Remember the latest name for this fellow
+            AndroidDevice.this.updateWifiDirectName(result.getWifiDirectName());
 
             return result;
             });
@@ -85,9 +83,9 @@ public class AndroidDevice extends ReentrantLockOwner
 
     public static class PersistentState
         {
-        String      usbSerialNumber = "";
-        String      wifiDirectName = "";
-        String      inetAddressLastConnected = "";
+        String usbSerialNumber;
+        String wifiDirectName;
+        InetSocketAddress inetSocketAddressLastConnected = null;
 
         public PersistentState()
             {
@@ -96,18 +94,9 @@ public class AndroidDevice extends ReentrantLockOwner
             {
             this();
             this.usbSerialNumber = androidDevice.usbSerialNumber;
-            this.wifiDirectName = androidDevice.wifiDirectName != null ? androidDevice.wifiDirectName : "";
-            if (androidDevice.inetAddressLastConnected != null)
-                {
-                this.inetAddressLastConnected = androidDevice.inetAddressLastConnected.toString();
-                }
+            this.wifiDirectName = androidDevice.wifiDirectName;
+            this.inetSocketAddressLastConnected = androidDevice.inetSocketAddressLastConnected;
             }
-
-        public InetAddress getInetAddressLastConnected()
-            {
-            return Misc.parseInetAddress(inetAddressLastConnected);
-            }
-
         }
 
     public PersistentState getPersistentState()
@@ -118,12 +107,8 @@ public class AndroidDevice extends ReentrantLockOwner
     public void loadPersistentState(PersistentState persistentState)
         {
         assert this.usbSerialNumber.equals(persistentState.usbSerialNumber);
-        this.inetAddressLastConnected = StringUtils.isNullOrEmpty(persistentState.inetAddressLastConnected)
-                ? null
-                : Misc.parseInetAddress(persistentState.inetAddressLastConnected);
-        this.wifiDirectName = StringUtils.isNullOrEmpty(persistentState.wifiDirectName)
-                ? null
-                : persistentState.wifiDirectName;
+        this.inetSocketAddressLastConnected = persistentState.inetSocketAddressLastConnected;
+        updateWifiDirectName(persistentState.wifiDirectName);
         }
 
     //----------------------------------------------------------------------------------------------
@@ -177,13 +162,28 @@ public class AndroidDevice extends ReentrantLockOwner
         return result;
         }
 
+    public String getDebugDisplayName()
+        {
+        return wifiDirectName==null
+                ? usbSerialNumber
+                : String.format(Locale.ROOT, "%s(%s)", wifiDirectName, usbSerialNumber);
+        }
+
+    public void updateWifiDirectName(@Nullable String wifiDirectName)
+        {
+        if (StringUtils.notNullOrEmpty(wifiDirectName))
+            {
+            this.wifiDirectName = wifiDirectName;
+            }
+        }
+
     //----------------------------------------------------------------------------------------------
     // Mapping over handles
     //----------------------------------------------------------------------------------------------
 
     protected boolean predicateOverHandles(Predicate<AndroidDeviceHandle> predicate)
         {
-        return lockWhile("predicateOverHandles",() ->
+        return lockWhile(() ->
             {
             for (AndroidDeviceHandle handle : handles.values())
                 {
@@ -198,7 +198,7 @@ public class AndroidDevice extends ReentrantLockOwner
 
     protected <T> T getDeviceProperty(Function<AndroidDeviceHandle, T> function)
         {
-        return lockWhile("getDeviceProperty", () ->
+        return lockWhile(() ->
             {
             for (AndroidDeviceHandle handle : handles.values())
                 {
@@ -214,7 +214,7 @@ public class AndroidDevice extends ReentrantLockOwner
 
     protected <T> T anyHandle(Function<AndroidDeviceHandle, T> function)
         {
-        return lockWhile("anyHandle", () ->
+        return lockWhile(() ->
             {
             // For robustness: try USB handles first
             for (AndroidDeviceHandle handle : handles.values())
@@ -245,7 +245,7 @@ public class AndroidDevice extends ReentrantLockOwner
     /** Called with the database handles lock NOT held. */
     public void refreshTcpipConnectivity()
         {
-        boolean needToConnect = lockWhile("refresh1", () -> isOpen() && !isOpenUsingTcpip());
+        boolean needToConnect = lockWhile(() -> isOpen() && !isOpenUsingTcpip());
         if (needToConnect)
             {
             // ADB doesn't already have a TCPIP connection for him. We'll try to make one if we can.
@@ -255,74 +255,56 @@ public class AndroidDevice extends ReentrantLockOwner
             if (!connected)
                 {
                 // Can we reach him over WifiDirect? If so, use that
-                EventLog.dd(this, "maybe wifi direct");
-                boolean tryWifiDirect = lockWhile("refresh2", () ->
+                boolean tryWifiDirect = lockWhile(() ->
                     !database.isWifiDirectIPAddressConnected()
-                        && isPingable(Configuration.WIFI_DIRECT_GROUP_OWNER_ADDRESS)
+                        && IpUtil.isPingable(Configuration.WIFI_DIRECT_GROUP_OWNER_ADDRESS)
                         && isWifiDirectGroupOwner()
                     );
 
                 if (tryWifiDirect)
                     {
                     EventLog.dd(this, "trying wifi direct");
-                    connected = listenAndConnect(Configuration.WIFI_DIRECT_GROUP_OWNER_ADDRESS);
+                    connected = listenAndConnect(Configuration.WIFI_DIRECT_GROUP_OWNER_ADDRESS, Configuration.ADB_DAEMON_PORT);
                     }
                 }
 
             if (!connected)
                 {
-                EventLog.dd(this, "maybe wlan");
                 // Is he on some other (infrastructure) wifi network that we can reach him through?
                 InetAddress inetAddress = getWlanAddress();
-                if (inetAddress != null && isPingable(inetAddress))
+                if (inetAddress != null && IpUtil.isPingable(inetAddress))
                     {
                     EventLog.dd(this, "trying wlan %s", inetAddress);
-                    connected = listenAndConnect(inetAddress);
+                    connected = listenAndConnect(inetAddress, Configuration.ADB_DAEMON_PORT);
                     }
                 }
 
             if (!connected)
                 {
-                EventLog.notify(TAG, "unable to tcpip-connect to %s", getUsbSerialNumber());
+                EventLog.notify(TAG, "unable to tcpip-connect to %s", getDebugDisplayName());
                 }
             }
         }
 
-    protected boolean listenAndConnect(InetAddress inetAddress)
+    protected boolean listenAndConnect(InetAddress inetAddress, int port)
         {
-        return trace("listenAndConnect", () ->
+        boolean result = false;
+        InetSocketAddress inetSocketAddress = new InetSocketAddress(inetAddress, port);
+        if (listenOnTcpip() && adbConnect(inetSocketAddress))
             {
-            boolean result = false;
-            if (listenOnTcpip() && adbConnect(inetAddress))
-                {
-                result = true;
-                EventLog.dd(this, "tcpip-connected to %s at %s", getUsbSerialNumber(), inetAddress);
-                }
-            return result;
-            });
-        }
+            result = true;
+            EventLog.dd(this, "tcpip-connected to %s at %s", getDebugDisplayName(), inetSocketAddress);
+            }
+        return result;
+    }
 
-    public boolean isPingable(InetAddress inetAddress)
+    public boolean adbConnect(InetSocketAddress inetSocketAddress)
         {
-        return trace("isPingable", () ->
-            {
-            try {
-                return inetAddress.isReachable(Configuration.msAdbTimeoutFast);
-                }
-            catch (IOException|RuntimeException e)
-                {
-                return false;
-                }
-            });
-        }
-
-    public boolean adbConnect(InetAddress inetAddress)
-        {
-        boolean result = database.getHostAdb().connect(inetAddress);
+        boolean result = database.getHostAdb().connect(inetSocketAddress);
         if (result)
             {
-            inetAddressLastConnected = inetAddress;
-            database.noteDeviceConnectedTcpip(this, inetAddress);
+            inetSocketAddressLastConnected = inetSocketAddress;
+            database.noteDeviceConnectedTcpip(this, inetSocketAddress);
             }
         return result;
         }

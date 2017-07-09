@@ -339,10 +339,6 @@ public class AndroidDeviceDatabase
             }
         }
 
-    public void noteDeviceConnectedTcpip(AndroidDevice androidDevice, InetAddress inetAddress)
-        {
-        noteDeviceConnectedTcpip(androidDevice, new InetSocketAddress(inetAddress, Configuration.ADB_DAEMON_PORT));
-        }
     public void noteDeviceConnectedTcpip(AndroidDevice androidDevice, InetSocketAddress inetSocketAddress)
         {
         lockDevicesWhile(() ->
