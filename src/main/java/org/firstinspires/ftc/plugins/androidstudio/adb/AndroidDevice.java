@@ -255,7 +255,7 @@ public class AndroidDevice extends ReentrantLockOwner
             if (!connected)
                 {
                 // Can we reach him over WifiDirect? If so, use that
-                EventLog.dd(TAG, "maybe wifi direct");
+                EventLog.dd(this, "maybe wifi direct");
                 boolean tryWifiDirect = lockWhile("refresh2", () ->
                     !database.isWifiDirectIPAddressConnected()
                         && isPingable(Configuration.WIFI_DIRECT_GROUP_OWNER_ADDRESS)
@@ -264,19 +264,19 @@ public class AndroidDevice extends ReentrantLockOwner
 
                 if (tryWifiDirect)
                     {
-                    EventLog.dd(TAG, "trying wifi direct");
+                    EventLog.dd(this, "trying wifi direct");
                     connected = listenAndConnect(Configuration.WIFI_DIRECT_GROUP_OWNER_ADDRESS);
                     }
                 }
 
             if (!connected)
                 {
-                EventLog.dd(TAG, "maybe wlan");
+                EventLog.dd(this, "maybe wlan");
                 // Is he on some other (infrastructure) wifi network that we can reach him through?
                 InetAddress inetAddress = getWlanAddress();
                 if (inetAddress != null && isPingable(inetAddress))
                     {
-                    EventLog.dd(TAG, "trying wlan %s", inetAddress);
+                    EventLog.dd(this, "trying wlan %s", inetAddress);
                     connected = listenAndConnect(inetAddress);
                     }
                 }
@@ -296,7 +296,7 @@ public class AndroidDevice extends ReentrantLockOwner
             if (listenOnTcpip() && adbConnect(inetAddress))
                 {
                 result = true;
-                EventLog.dd(TAG, "tcpip-connected to %s at %s", getUsbSerialNumber(), inetAddress);
+                EventLog.dd(this, "tcpip-connected to %s at %s", getUsbSerialNumber(), inetAddress);
                 }
             return result;
             });

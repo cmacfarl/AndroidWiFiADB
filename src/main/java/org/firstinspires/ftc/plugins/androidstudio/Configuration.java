@@ -1,6 +1,5 @@
 package org.firstinspires.ftc.plugins.androidstudio;
 
-import com.android.ddmlib.DdmPreferences;
 import org.firstinspires.ftc.plugins.androidstudio.util.Misc;
 
 import java.net.InetAddress;
@@ -36,5 +35,5 @@ public class Configuration
     public static final int ADB_DAEMON_PORT = 5555;
 
     public static int msAdbTimeoutSlow = 2000;
-    public static int msAdbTimeoutFast = DdmPreferences.getTimeOut();
+    public static int msAdbTimeoutFast = 200;
     }
