@@ -267,7 +267,8 @@ public class AndroidDeviceDatabase
         }
 
 
-    /** Must be idempotent */
+    /** Must be idempotent, since we turn some of our 'device changed' notifications
+     * into 'device opened' */
     public void open(IDevice device)
         {
         AndroidDeviceHandle result = lockDevicesWhile(() ->
@@ -294,6 +295,8 @@ public class AndroidDeviceDatabase
             }
         }
 
+    /** Must be idempotent, as usual, but especially since we turn some of our 'device changed'
+     * notifications into 'device closed' */
     public void close(IDevice device)
         {
         lockDevicesWhile(() ->
