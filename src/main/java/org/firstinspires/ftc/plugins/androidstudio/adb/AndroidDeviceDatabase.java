@@ -13,10 +13,8 @@ import org.firstinspires.ftc.plugins.androidstudio.util.StringUtil;
 import org.firstinspires.ftc.plugins.androidstudio.util.ThreadPool;
 import org.jetbrains.annotations.Nullable;
 
-import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
 import java.net.InetSocketAddress;
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Locale;
@@ -116,8 +114,9 @@ public class AndroidDeviceDatabase
             });
         }
 
-    public void loadPersistentState(PersistentState persistentState)
+    public void loadPersistentState(PersistentState param)
         {
+        PersistentState persistentState = param==null ? new PersistentState() : param;
         lockDevicesWhile(() ->
             {
             try
@@ -132,7 +131,6 @@ public class AndroidDeviceDatabase
                     {
                     deviceMap.put(androidDeviceData.usbSerialNumber, new AndroidDevice(this, androidDeviceData));
                     }
-                debugDump();
                 }
             catch (RuntimeException e)
                 {
@@ -143,16 +141,7 @@ public class AndroidDeviceDatabase
             });
         }
 
-    protected void debugDump()
-        {
-        ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
-        PrintStream printStream = new PrintStream(byteArrayOutputStream);
-        debugDump(0, printStream);
-        String result = new String(byteArrayOutputStream.toByteArray(), StandardCharsets.UTF_8);
-        EventLog.dd(TAG, "state=\n%s", result);
-        }
-
-    protected void debugDump(int indent, PrintStream out)
+    public void debugDump(int indent, PrintStream out)
         {
         lockDevicesWhile(() ->
             {

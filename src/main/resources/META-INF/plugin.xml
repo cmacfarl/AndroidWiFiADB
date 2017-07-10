@@ -2,7 +2,7 @@
 <idea-plugin>
   <id>org.firstinspires.ftc.plugins.androidstudio</id>
   <name>FTC Android Studio plugin</name>
-  <version>0.0.52</version>
+  <version>0.0.53</version>
   <vendor email="bob@theatkinsons.org" url="http://www.github.com/ftctechnh/ftc_app">
     First Tech Challenge Technology Team
   </vendor>

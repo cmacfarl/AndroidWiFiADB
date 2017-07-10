@@ -10,11 +10,15 @@ import com.intellij.openapi.project.Project;
 import org.firstinspires.ftc.plugins.androidstudio.Configuration;
 import org.firstinspires.ftc.plugins.androidstudio.adb.AndroidDeviceDatabase;
 import org.firstinspires.ftc.plugins.androidstudio.util.EventLog;
+import org.firstinspires.ftc.plugins.androidstudio.util.StringUtil;
 import org.firstinspires.ftc.plugins.androidstudio.util.ThreadPool;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.io.ByteArrayOutputStream;
 import java.io.File;
+import java.io.PrintStream;
+import java.nio.charset.StandardCharsets;
 
 /**
  * http://www.jetbrains.org/intellij/sdk/docs/basics/plugin_structure/plugin_components.html
@@ -31,6 +35,7 @@ public class FtcProjectComponentImpl implements FtcProjectComponent, PersistentS
     public static final String TAG = "FtcProjectComponent";
 
     protected final Project project;
+    protected       boolean stateLoaded;
     protected       boolean disabledInstantRun;
     protected       AndroidDeviceDatabase database;
     protected       AndroidDeviceDatabase.PersistentState stagedState = null;
@@ -42,6 +47,7 @@ public class FtcProjectComponentImpl implements FtcProjectComponent, PersistentS
     public FtcProjectComponentImpl(Project project)
         {
         this.project = project;
+        this.stateLoaded = false;
         this.disabledInstantRun = false;
         this.database = null;
         this.stagedState = null;
@@ -54,6 +60,15 @@ public class FtcProjectComponentImpl implements FtcProjectComponent, PersistentS
     @Override public void initComponent()
         {
         EventLog.dd(TAG, "initComponent()");
+
+        if (!stateLoaded)
+            {
+            stateLoaded = true;
+            internalLoadState(new PersistentStateExternal());   // For consistency
+            }
+
+        debugDump();
+        disableInstantRunIfNecessary();
         }
 
     @Override public void disposeComponent()
@@ -84,23 +99,18 @@ public class FtcProjectComponentImpl implements FtcProjectComponent, PersistentS
         startAdbServer();
         }
 
-    protected void onStateLoaded()
+    protected void disableInstantRunIfNecessary()
         {
         if (!disabledInstantRun)
             {
-            disableInstantRun();
+            // There are two sets of settings. You'd think we'd want the project-centric ones, but
+            // the Android Studio UI seems only to manipulate the global one. So we do both, just to
+            // be sure.
+            EventLog.dd(TAG, "disabling InstantRun");
+            InstantRunConfiguration.getInstance().INSTANT_RUN = false;
+            InstantRunConfiguration.getInstance(project).INSTANT_RUN = false;
             disabledInstantRun = true;
             }
-        }
-
-    protected void disableInstantRun()
-        {
-        // There are two sets of settings. You'd think we'd want the project-centric ones, but
-        // the Android Studio UI seems only to manipulate the global one. So we do both, just to
-        // be sure.
-        EventLog.dd(TAG, "disabling InstantRun");
-        InstantRunConfiguration.getInstance().INSTANT_RUN = false;
-        InstantRunConfiguration.getInstance(project).INSTANT_RUN = false;
         }
 
     protected void startAdbServer()
@@ -126,9 +136,9 @@ public class FtcProjectComponentImpl implements FtcProjectComponent, PersistentS
     // https://intellij-support.jetbrains.com/hc/en-us/community/posts/206794095-Where-is-ApplicationComponent-state-stored-in-
     //----------------------------------------------------------------------------------------------
 
-    /** A hack: not XML native, but an JSON dump living in an XML attribute, but it works. And
+    /** A hack: not XML native, just an JSON dump living in an XML attribute, but it works. And
      * blimy if we just can't get the default serialization to work with anything complicated.
-     * So ***** 'em. */
+     * Enough time spent on that sillyness, moving on ... */
     public static class PersistentStateExternal
         {
         public String json = null;
@@ -170,25 +180,54 @@ public class FtcProjectComponentImpl implements FtcProjectComponent, PersistentS
 
     @Override public void loadState(PersistentStateExternal persistentStateExternal)
         {
-        PersistentState persistentState = PersistentState.from(persistentStateExternal);
+        EventLog.dd(TAG, "loadState()");
+        stateLoaded = true;
+        internalLoadState(persistentStateExternal);
+        }
 
-        disabledInstantRun = persistentState.disabledInstantRun;
-        if (database==null)
+    protected void internalLoadState(PersistentStateExternal persistentStateExternal)
+        {
+        try {
+            PersistentState persistentState = PersistentState.from(persistentStateExternal);
+
+            disabledInstantRun = persistentState.disabledInstantRun;
+            if (database == null)
+                {
+                stagedState = persistentState.databaseState;
+                }
+            else
+                {
+                stagedState = null;
+                database.loadPersistentState(persistentState.databaseState);
+                }
+            }
+        catch (RuntimeException e)
             {
-            stagedState = persistentState.databaseState;
+            internalLoadState(new PersistentStateExternal());
+            }
+        }
+
+    protected void debugDump()
+        {
+        ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
+        PrintStream printStream = new PrintStream(byteArrayOutputStream);
+        debugDump(0, printStream);
+        String result = new String(byteArrayOutputStream.toByteArray(), StandardCharsets.UTF_8);
+        EventLog.dd(TAG, "state=\n%s", result);
+        }
+
+    protected void debugDump(int indent, PrintStream out)
+        {
+        StringUtil.appendLine(indent, out, "disabledInstantRun=%s", disabledInstantRun);
+        StringUtil.appendLine(indent, out, "database");
+        if (database == null)
+            {
+            StringUtil.appendLine(indent+1, out, "null");
             }
         else
             {
-            stagedState = null;
-            database.loadPersistentState(persistentState.databaseState);
+            database.debugDump(indent+1, out);
             }
-
-        onStateLoaded();
         }
 
-    /*@Override*/
-    public void noStateLoaded()
-        {
-        loadState(new PersistentStateExternal());
-        }
     }
