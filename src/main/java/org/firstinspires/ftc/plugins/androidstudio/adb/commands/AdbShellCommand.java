@@ -1,10 +1,14 @@
 package org.firstinspires.ftc.plugins.androidstudio.adb.commands;
 
+import com.android.ddmlib.AdbCommandRejectedException;
 import com.android.ddmlib.IDevice;
 import com.android.ddmlib.IShellOutputReceiver;
+import com.android.ddmlib.ShellCommandUnresponsiveException;
+import com.android.ddmlib.TimeoutException;
 import org.firstinspires.ftc.plugins.androidstudio.Configuration;
-import org.firstinspires.ftc.plugins.androidstudio.util.EventLog;
+import org.firstinspires.ftc.plugins.androidstudio.util.AdbCommunicationException;
 
+import java.io.IOException;
 import java.util.Locale;
 import java.util.concurrent.TimeUnit;
 
@@ -17,21 +21,24 @@ public abstract class AdbShellCommand
     {
     public static final String TAG = "Command";
 
-    protected IDevice executedDevice = null;
+    protected IDevice device = null;
     protected String executedCommand = "<unexecuted>";
 
-    protected boolean executeShellCommand(IDevice device, String command, IShellOutputReceiver receiver)
+    protected AdbShellCommand(IDevice device)
+        {
+        this.device = device;
+        }
+
+    protected void executeShellCommand(String command, IShellOutputReceiver receiver) throws AdbCommunicationException
         {
         try {
             executedCommand = command;
             device.executeShellCommand(command, receiver, Configuration.msAdbTimeoutSlow, TimeUnit.MILLISECONDS);
-            return true;
             }
-        catch (Exception e)
+        catch (AdbCommandRejectedException|TimeoutException|ShellCommandUnresponsiveException|IOException e)
             {
-            EventLog.ee(TAG, e, "command failed: %s", command);
+            throw new AdbCommunicationException(e, "command failed: %s", command);
             }
-        return false;
         }
 
     protected RuntimeException resultError(String message)
@@ -41,7 +48,7 @@ public abstract class AdbShellCommand
     protected RuntimeException resultError(String format, Object...args)
         {
         String message = String.format(Locale.ROOT, format, args);
-        String device = executedDevice==null ? "" : String.format(Locale.ROOT, " device=%s", executedDevice.getSerialNumber());
+        String device = this.device ==null ? "" : String.format(Locale.ROOT, " device=%s", this.device.getSerialNumber());
         String payload = String.format("%s:%s command='%s' %s", this.getClass().getSimpleName(), device, executedCommand, message);
         return new RuntimeException(payload);
         }

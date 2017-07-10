@@ -2,6 +2,7 @@ package org.firstinspires.ftc.plugins.androidstudio.adb.commands;
 
 import com.android.ddmlib.IDevice;
 import org.firstinspires.ftc.plugins.androidstudio.adb.AndroidDeviceHandle;
+import org.firstinspires.ftc.plugins.androidstudio.util.AdbCommunicationException;
 import org.firstinspires.ftc.plugins.androidstudio.util.EventLog;
 import org.firstinspires.ftc.plugins.androidstudio.util.IpUtil;
 import org.jetbrains.annotations.Nullable;
@@ -23,10 +24,17 @@ public class IfConfigCommand extends AdbShellCommand
     public static final String TAG = "IfConfigCommand";
 
     protected AdbShellCommandResultCollector receiver = new AdbShellCommandResultCollector();
+    protected String intf;
 
-    public boolean execute(IDevice device, String intf)
+    public IfConfigCommand(IDevice device, String intf)
         {
-        return executeShellCommand(device, "ifconfig " + intf, receiver);
+        super(device);
+        this.intf = intf;
+        }
+
+    public void execute() throws AdbCommunicationException
+        {
+        executeShellCommand("ifconfig " + intf, receiver);
         }
 
     // Example Android responses:

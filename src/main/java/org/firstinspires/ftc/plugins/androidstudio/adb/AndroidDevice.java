@@ -3,10 +3,10 @@ package org.firstinspires.ftc.plugins.androidstudio.adb;
 import com.android.ddmlib.IDevice;
 import org.firstinspires.ftc.plugins.androidstudio.Configuration;
 import org.firstinspires.ftc.plugins.androidstudio.util.EventLog;
-import org.firstinspires.ftc.plugins.androidstudio.util.ReentrantLockOwner;
 import org.firstinspires.ftc.plugins.androidstudio.util.IpUtil;
+import org.firstinspires.ftc.plugins.androidstudio.util.ReentrantLockOwner;
 import org.firstinspires.ftc.plugins.androidstudio.util.StringUtil;
-import org.jetbrains.annotations.NotNull;
+import org.firstinspires.ftc.plugins.androidstudio.util.ThreadPool;
 import org.jetbrains.annotations.Nullable;
 
 import java.io.PrintStream;
@@ -61,12 +61,11 @@ public class AndroidDevice extends ReentrantLockOwner
         }
 
     // Must be idempotent
-    public @NotNull AndroidDeviceHandle open(IDevice device)
+    public AndroidDeviceHandle open(IDevice device)
         {
         return lockWhile(() ->
             {
-            AndroidDeviceHandle result = handles.computeIfAbsent(device.getSerialNumber(),
-                    (serialNumber) -> new AndroidDeviceHandle(device, this));
+            AndroidDeviceHandle result = handles.computeIfAbsent(device.getSerialNumber(), ignored -> new AndroidDeviceHandle(device, this));
 
             // Remember the latest name for this fellow
             AndroidDevice.this.updateWifiDirectName(result.getWifiDirectName());
@@ -84,7 +83,21 @@ public class AndroidDevice extends ReentrantLockOwner
 
     public void close(AndroidDeviceHandle deviceHandle)
         {
-        lockWhile(() -> handles.remove(deviceHandle.getSerialNumber()));
+        lockWhile(() ->
+            {
+            handles.remove(deviceHandle.getSerialNumber());
+
+            if (deviceHandle.isTcpip() && handles.size()==0)
+                {
+                // We just closed the last handle, and it was a TCPIP one. Is this a stupid phone,
+                // one that closes ALL its devices when just the USB device disconnects? If so, then
+                // try to reconnect once more. (Actually, we *always* do that, for now).
+                //
+                InetSocketAddress inetSocketAddress = deviceHandle.getInetSocketAddress();
+                EventLog.dd(TAG, "lost tcpip/last connection: attempting reconnect: %s", IpUtil.toString(inetSocketAddress));
+                ThreadPool.getDefault().execute(() -> database.getHostAdb().connect(inetSocketAddress, Configuration.msAdbTimeoutSlow));
+                }
+            });
         }
 
     public void debugDump(int indent, PrintStream out)
@@ -269,7 +282,8 @@ public class AndroidDevice extends ReentrantLockOwner
     // Commands
     //----------------------------------------------------------------------------------------------
 
-    /** Called with the database handles lock NOT held. */
+    /** Called with the database handles lock NOT held. So: devices can come and go
+     * while we're in here. Be careful! */
     public void refreshTcpipConnectivity()
         {
         boolean needToConnect = lockWhile(() -> isOpen() && !isOpenUsingTcpip());
@@ -340,7 +354,7 @@ public class AndroidDevice extends ReentrantLockOwner
 
     public boolean adbConnect(InetSocketAddress inetSocketAddress)
         {
-        return database.getHostAdb().connect(inetSocketAddress);
+        return database.getHostAdb().connect(inetSocketAddress, Configuration.msAdbTimeoutSlow);
         }
 
     public boolean listenOnTcpip()

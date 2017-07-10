@@ -15,6 +15,7 @@ import java.io.InputStreamReader;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.util.Locale;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 /**
@@ -65,7 +66,7 @@ public class HostAdb
     public boolean tcpip(IDevice device, int port)
         {
         String payload = String.format(Locale.ROOT,"tcpip %d", port);
-        String result = executeCommand(formCommand(device, payload));
+        String result = executeSystemCommand(composeCommand(device, payload));
 
         /* Example executions:
 
@@ -86,12 +87,17 @@ public class HostAdb
         return connect(new InetSocketAddress(inetAddress, Configuration.ADB_DAEMON_PORT));
         }
 
-    /** Note: this can take a *very* long time if there's no device reachable at the
-     * indicated address */
     public boolean connect(InetSocketAddress inetSocketAddress)
         {
+        return connect(inetSocketAddress, 0);
+        }
+
+    /** Note: this can take a *very* long time if there's no device reachable at the
+     * indicated address */
+    public boolean connect(InetSocketAddress inetSocketAddress, int msTimeout)
+        {
         String address = String.format("%s:%d", inetSocketAddress.getAddress().getHostAddress(), inetSocketAddress.getPort());
-        String result = executeCommand(formCommand(null, "connect " + address));
+        String result = executeSystemCommand(composeCommand(null, "connect " + address), msTimeout);
 
         /* Example executions:
 
@@ -115,7 +121,7 @@ public class HostAdb
     public boolean disconnect(IDevice device)
         {
         String payload = String.format("disconnect %s", device.getSerialNumber());
-        String result = executeCommand(formCommand(null, payload));
+        String result = executeSystemCommand(composeCommand(null, payload));
 
         /* Example executions:
 
@@ -136,7 +142,7 @@ public class HostAdb
     // Utility
     //----------------------------------------------------------------------------------------------
 
-    protected String formCommand(@Nullable IDevice device, String command)
+    protected String composeCommand(@Nullable IDevice device, String command)
         {
         return adbExecutable.getAbsolutePath()
                 + (device != null ? " -s " + device.getSerialNumber() : "")
@@ -144,14 +150,30 @@ public class HostAdb
                 + command;
         }
 
-    protected String executeCommand(String command)
+    protected String executeSystemCommand(String command)
+        {
+        return executeSystemCommand(command, 0);
+        }
+
+    protected String executeSystemCommand(String command, int msTimeout)
         {
         StringBuilder result = new StringBuilder();
         try
             {
             EventLog.dd(this, "executing: %s", command);
             Process process = Runtime.getRuntime().exec(command);
-            process.waitFor();
+            if (msTimeout == 0)
+                {
+                process.waitFor();
+                }
+            else
+                {
+                if (!process.waitFor(msTimeout, TimeUnit.MILLISECONDS))
+                    {
+                    process.destroy();
+                    return "";
+                    }
+                }
             //
             BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()));
             for (String line : reader.lines().collect(Collectors.toList()))

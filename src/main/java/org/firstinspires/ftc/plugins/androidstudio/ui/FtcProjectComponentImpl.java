@@ -1,6 +1,8 @@
 package org.firstinspires.ftc.plugins.androidstudio.ui;
 
 import com.android.tools.idea.ddms.adb.AdbService;
+import com.android.tools.idea.fd.InstantRunConfiguration;
+import com.google.gson.Gson;
 import com.intellij.openapi.components.PersistentStateComponent;
 import com.intellij.openapi.components.State;
 import com.intellij.openapi.components.Storage;
@@ -20,7 +22,7 @@ import java.io.File;
  */
 @SuppressWarnings("WeakerAccess")
 @State(name="FtcProjectComponent", storages = { @Storage(Configuration.XML_STATE_FILE_NAME) } )
-public class FtcProjectComponentImpl implements FtcProjectComponent, PersistentStateComponent<AndroidDeviceDatabase.PersistentStateExternal>
+public class FtcProjectComponentImpl implements FtcProjectComponent, PersistentStateComponent<FtcProjectComponentImpl.PersistentStateExternal>
     {
     //----------------------------------------------------------------------------------------------
     // State
@@ -29,8 +31,9 @@ public class FtcProjectComponentImpl implements FtcProjectComponent, PersistentS
     public static final String TAG = "FtcProjectComponent";
 
     protected final Project project;
+    protected       boolean disabledInstantRun;
     protected       AndroidDeviceDatabase database;
-    protected       AndroidDeviceDatabase.PersistentStateExternal stagedState = null;
+    protected       AndroidDeviceDatabase.PersistentState stagedState = null;
 
     //----------------------------------------------------------------------------------------------
     // Construction
@@ -39,6 +42,7 @@ public class FtcProjectComponentImpl implements FtcProjectComponent, PersistentS
     public FtcProjectComponentImpl(Project project)
         {
         this.project = project;
+        this.disabledInstantRun = false;
         this.database = null;
         this.stagedState = null;
         }
@@ -80,6 +84,25 @@ public class FtcProjectComponentImpl implements FtcProjectComponent, PersistentS
         startAdbServer();
         }
 
+    protected void onStateLoaded()
+        {
+        if (!disabledInstantRun)
+            {
+            disableInstantRun();
+            disabledInstantRun = true;
+            }
+        }
+
+    protected void disableInstantRun()
+        {
+        // There are two sets of settings. You'd think we'd want the project-centric ones, but
+        // the Android Studio UI seems only to manipulate the global one. So we do both, just to
+        // be sure.
+        EventLog.dd(TAG, "disabling InstantRun");
+        InstantRunConfiguration.getInstance().INSTANT_RUN = false;
+        InstantRunConfiguration.getInstance(project).INSTANT_RUN = false;
+        }
+
     protected void startAdbServer()
         {
         /** Asynchronously (so as not to block the UI ) start up ADB if it's not already started */
@@ -103,28 +126,69 @@ public class FtcProjectComponentImpl implements FtcProjectComponent, PersistentS
     // https://intellij-support.jetbrains.com/hc/en-us/community/posts/206794095-Where-is-ApplicationComponent-state-stored-in-
     //----------------------------------------------------------------------------------------------
 
-    @Override @Nullable
-    public AndroidDeviceDatabase.PersistentStateExternal getState()
+    /** A hack: not XML native, but an JSON dump living in an XML attribute, but it works. And
+     * blimy if we just can't get the default serialization to work with anything complicated.
+     * So ***** 'em. */
+    public static class PersistentStateExternal
         {
-        return database == null ? new AndroidDeviceDatabase.PersistentStateExternal() : database.getPersistentState();
+        public String json = null;
+        public PersistentStateExternal() { }
+        public PersistentStateExternal(PersistentState proto)
+            {
+            this.json = new Gson().toJson(proto);
+            }
         }
 
-    @Override public void loadState(AndroidDeviceDatabase.PersistentStateExternal persistentState)
+    public static class PersistentState
         {
+        boolean disabledInstantRun = false;
+        AndroidDeviceDatabase.PersistentState databaseState;
+
+        public static PersistentState from(PersistentStateExternal persistentStateExternal)
+            {
+            if (persistentStateExternal.json==null)
+                {
+                return new PersistentState();
+                }
+            else
+                {
+                return new Gson().fromJson(persistentStateExternal.json, PersistentState.class);
+                }
+            }
+        }
+
+    @Override @Nullable
+    public PersistentStateExternal getState()
+        {
+        PersistentState persistentState = new PersistentState();
+        persistentState.disabledInstantRun = disabledInstantRun;
+        persistentState.databaseState = database==null
+                ? null
+                : database.getPersistentState();
+        return new PersistentStateExternal(persistentState);
+        }
+
+    @Override public void loadState(PersistentStateExternal persistentStateExternal)
+        {
+        PersistentState persistentState = PersistentState.from(persistentStateExternal);
+
+        disabledInstantRun = persistentState.disabledInstantRun;
         if (database==null)
             {
-            stagedState = persistentState;
+            stagedState = persistentState.databaseState;
             }
         else
             {
             stagedState = null;
-            database.loadPersistentState(persistentState);
+            database.loadPersistentState(persistentState.databaseState);
             }
+
+        onStateLoaded();
         }
 
     /*@Override*/
     public void noStateLoaded()
         {
-        loadState(new AndroidDeviceDatabase.PersistentStateExternal());
+        loadState(new PersistentStateExternal());
         }
     }

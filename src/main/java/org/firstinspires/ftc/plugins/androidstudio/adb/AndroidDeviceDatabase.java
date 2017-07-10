@@ -2,7 +2,6 @@ package org.firstinspires.ftc.plugins.androidstudio.adb;
 
 import com.android.ddmlib.AndroidDebugBridge;
 import com.android.ddmlib.IDevice;
-import com.google.gson.Gson;
 import com.intellij.openapi.project.Project;
 import kotlin.Pair;
 import org.firstinspires.ftc.plugins.androidstudio.Configuration;
@@ -93,19 +92,6 @@ public class AndroidDeviceDatabase
     // Loading and saving
     //----------------------------------------------------------------------------------------------
 
-    /** A hack: not XML native, but an JSON dump living in an XML attribute, but it works. And
-     * blimy if we just can't get the default serialization to work with anything complicated.
-     * So ***** 'em. */
-    public static class PersistentStateExternal
-        {
-        public String json = null;
-        public PersistentStateExternal() { }
-        public PersistentStateExternal(PersistentState proto)
-            {
-            this.json = new Gson().toJson(proto);
-            }
-        }
-
     public static class PersistentState
         {
         ArrayList<AndroidDevice.PersistentState> androidDevices = new ArrayList<>();
@@ -113,20 +99,9 @@ public class AndroidDeviceDatabase
         String inetSocketAddressLastConnected;
 
         public PersistentState() {}
-        public static PersistentState from(PersistentStateExternal persistentStateExternal)
-            {
-            if (persistentStateExternal.json==null)
-                {
-                return new PersistentState();
-                }
-            else
-                {
-                return new Gson().fromJson(persistentStateExternal.json, PersistentState.class);
-                }
-            }
         }
 
-    public PersistentStateExternal getPersistentState()
+    public PersistentState getPersistentState()
         {
         return lockDevicesWhile(() ->
             {
@@ -137,17 +112,16 @@ public class AndroidDeviceDatabase
                 {
                 result.androidDevices.add(androidDevice.getPersistentState());
                 }
-            return new PersistentStateExternal(result);
+            return result;
             });
         }
 
-    public void loadPersistentState(PersistentStateExternal persistentStateExternal)
+    public void loadPersistentState(PersistentState persistentState)
         {
         lockDevicesWhile(() ->
             {
             try
                 {
-                PersistentState persistentState = PersistentState.from(persistentStateExternal);
                 deviceMap.clear();
                 openedDeviceMap.clear();
 
@@ -164,7 +138,7 @@ public class AndroidDeviceDatabase
                 {
                 EventLog.ee(TAG, e,"exception in loadPersistentState: starting afresh");
                 // Tolerate errors in reifying (old format?) persistent state
-                loadPersistentState(new PersistentStateExternal());
+                loadPersistentState(new PersistentState());
                 }
             });
         }
@@ -305,20 +279,24 @@ public class AndroidDeviceDatabase
 
 
     /** Must be idempotent */
-    public AndroidDeviceHandle open(IDevice device)
+    public void open(IDevice device)
         {
         AndroidDeviceHandle result = lockDevicesWhile(() ->
             {
             AndroidDevice androidDevice = deviceMap.computeIfAbsent(getUsbSerialNumber(device),
                     (usbSerialNumber) -> new AndroidDevice(AndroidDeviceDatabase.this, usbSerialNumber));
             AndroidDeviceHandle handle = androidDevice.open(device);
-            openedDeviceMap.put(device.getSerialNumber(), handle);
+            if (handle != null)
+                {
+                openedDeviceMap.put(device.getSerialNumber(), handle);
+                }
             return handle;
             });
 
-        result.getAndroidDevice().refreshTcpipConnectivity();
-
-        return result;
+        if (result != null)
+            {
+            result.getAndroidDevice().refreshTcpipConnectivity();
+            }
         }
 
     public void close(IDevice device)

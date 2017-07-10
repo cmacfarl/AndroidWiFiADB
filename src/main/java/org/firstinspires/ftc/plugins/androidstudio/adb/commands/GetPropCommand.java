@@ -2,6 +2,7 @@ package org.firstinspires.ftc.plugins.androidstudio.adb.commands;
 
 import com.android.ddmlib.IDevice;
 import com.android.ddmlib.MultiLineReceiver;
+import org.firstinspires.ftc.plugins.androidstudio.util.AdbCommunicationException;
 import org.firstinspires.ftc.plugins.androidstudio.util.StringUtil;
 
 import java.util.HashMap;
@@ -19,10 +20,15 @@ public class GetPropCommand extends AdbShellCommand
 
     protected Map<String, String> properties = new HashMap<>();
 
-    public boolean execute(IDevice device)
+    public GetPropCommand(IDevice device)
+        {
+        super(device);
+        }
+
+    public void execute() throws AdbCommunicationException
         {
         Receiver receiver = new Receiver();
-        return executeShellCommand(device, "getprop", receiver);
+        executeShellCommand("getprop", receiver);
         }
 
     public Map<String,String> getProperties()

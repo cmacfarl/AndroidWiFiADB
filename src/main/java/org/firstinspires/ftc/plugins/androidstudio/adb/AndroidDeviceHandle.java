@@ -4,6 +4,7 @@ import com.android.ddmlib.IDevice;
 import org.firstinspires.ftc.plugins.androidstudio.Configuration;
 import org.firstinspires.ftc.plugins.androidstudio.adb.commands.GetSettingCommand;
 import org.firstinspires.ftc.plugins.androidstudio.adb.commands.IfConfigCommand;
+import org.firstinspires.ftc.plugins.androidstudio.util.AdbCommunicationException;
 import org.firstinspires.ftc.plugins.androidstudio.util.EventLog;
 import org.firstinspires.ftc.plugins.androidstudio.util.IpUtil;
 import org.firstinspires.ftc.plugins.androidstudio.util.StringUtil;
@@ -178,22 +179,30 @@ public class AndroidDeviceHandle
 
     public boolean isWifiDirectGroupOwner()
         {
-        IfConfigCommand command = new IfConfigCommand();
-        if (command.execute(device, "p2p0"))
-            {
+        try {
+            IfConfigCommand command = new IfConfigCommand(device, "p2p0");
+            command.execute();
             return Configuration.WIFI_DIRECT_GROUP_OWNER_ADDRESS.equals(command.getInetAddress()) && command.isUp();
             }
-        throw new RuntimeException("command failed");
+        catch (AdbCommunicationException e)
+            {
+            EventLog.ee(TAG, e, "isWifiDirectGroupOwner() failed: %s; ignored", getUsbSerialNumber());
+            return false;
+            }
         }
 
     public String getWifiDirectName()
         {
-        GetSettingCommand command = new GetSettingCommand(GetSettingCommand.Namespace.GLOBAL, Configuration.SETTING_WIFI_P2P_DEVICE_NAME);
-        if (command.execute(device))
-            {
+        try {
+            GetSettingCommand command = new GetSettingCommand(device, GetSettingCommand.Namespace.GLOBAL, Configuration.SETTING_WIFI_P2P_DEVICE_NAME);
+            command.execute();
             return command.getResult();
             }
-        throw new RuntimeException("command failed");
+        catch (AdbCommunicationException e)
+            {
+            EventLog.ee(TAG, e, "getWifiDirectName() failed: %s; ignored", getUsbSerialNumber());
+            return null;
+            }
         }
 
     public boolean isListeningOnTcpip()
