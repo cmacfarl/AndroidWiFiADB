@@ -54,6 +54,10 @@ public class FtcProjectComponentImpl implements FtcProjectComponent, PersistentS
 
     @Override public void disposeComponent()
         {
+        if (database != null)
+            {
+            database.dispose();
+            }
         }
 
     @Override @NotNull

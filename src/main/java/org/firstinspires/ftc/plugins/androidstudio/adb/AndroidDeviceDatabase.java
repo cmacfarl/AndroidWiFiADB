@@ -9,6 +9,7 @@ import org.firstinspires.ftc.plugins.androidstudio.Configuration;
 import org.firstinspires.ftc.plugins.androidstudio.adb.commands.HostAdb;
 import org.firstinspires.ftc.plugins.androidstudio.util.EventLog;
 import org.firstinspires.ftc.plugins.androidstudio.util.IpUtil;
+import org.firstinspires.ftc.plugins.androidstudio.util.NetworkInterfaceMonitor;
 import org.firstinspires.ftc.plugins.androidstudio.util.StringUtil;
 import org.firstinspires.ftc.plugins.androidstudio.util.ThreadPool;
 import org.jetbrains.annotations.Nullable;
@@ -18,6 +19,7 @@ import java.io.PrintStream;
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -50,6 +52,8 @@ public class AndroidDeviceDatabase
     protected final AdbContext adbContext;
     protected final DeviceChangeListener deviceChangeListener = new DeviceChangeListener();
     protected final BridgeChangeListener bridgeChangeListener = new BridgeChangeListener();
+    protected final NetworkInterfaceListener networkInterfaceListener = new NetworkInterfaceListener();
+    protected final NetworkInterfaceMonitor networkInterfaceMonitor = new NetworkInterfaceMonitor(networkInterfaceListener);
 
     protected AndroidDebugBridge currentBridge;
 
@@ -77,6 +81,12 @@ public class AndroidDeviceDatabase
         this.adbContext = AdbContext.getInstance();
         this.adbContext.addDeviceChangeListener(deviceChangeListener);
         this.adbContext.addBridgeChangeListener(bridgeChangeListener);
+        networkInterfaceMonitor.start();
+        }
+
+    public void dispose()
+        {
+        lockDevicesWhile(networkInterfaceMonitor::stop);
         }
 
     //----------------------------------------------------------------------------------------------
@@ -341,6 +351,15 @@ public class AndroidDeviceDatabase
     // TCPIP management
     //----------------------------------------------------------------------------------------------
 
+    protected void refreshTcpipConnectivity()
+        {
+        Collection<AndroidDevice> devices = lockDevicesWhile(deviceMap::values);
+        for (AndroidDevice androidDevice : devices)
+            {
+            androidDevice.refreshTcpipConnectivity();
+            }
+        }
+
     protected void reconnectLastTcpipConnected()
         {
         InetSocketAddress inetSocketAddress = this.inetSocketAddressLastConnected;
@@ -413,6 +432,15 @@ public class AndroidDeviceDatabase
     //----------------------------------------------------------------------------------------------
     // Notification
     //----------------------------------------------------------------------------------------------
+
+    protected class NetworkInterfaceListener implements NetworkInterfaceMonitor.Callback
+        {
+        @Override public void onNetworkInterfacesChanged()
+            {
+            EventLog.dd(TAG, "network interface list changed: refreshing tcpip connectivity");
+            refreshTcpipConnectivity();
+            }
+        }
 
     protected class BridgeChangeListener implements AndroidDebugBridge.IDebugBridgeChangeListener
         {
