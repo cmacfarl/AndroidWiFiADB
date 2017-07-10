@@ -15,7 +15,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * Created by bob on 2017-07-07.
+ * {@link IfConfigCommand} manages the execution of the 'ifconfig' command on the device.
  */
 @SuppressWarnings("WeakerAccess")
 public class IfConfigCommand extends AdbShellCommand

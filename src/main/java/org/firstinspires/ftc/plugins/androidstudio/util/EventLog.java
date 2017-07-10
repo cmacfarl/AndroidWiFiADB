@@ -10,6 +10,7 @@ import java.util.Locale;
 @SuppressWarnings("WeakerAccess")
 public class EventLog
     {
+    public static boolean DEBUG = true;
     protected static Logger logger = Logger.getInstance(EventLog.class);
 
     public static void notify(String tag, String message)
@@ -38,7 +39,7 @@ public class EventLog
         String message = String.format(format, args);
         String line = String.format("%s: %s", header, message);
         logger.info(line);
-        NotificationHelper.info(line);
+        notifyInfo(line);
         }
 
     public static void dd(Object instance, String message)
@@ -59,7 +60,7 @@ public class EventLog
         String message = String.format(format, args);
         String line = String.format("%s: %s", header, message);
         Logger.getInstance(clazz).info(line);
-        NotificationHelper.info(line);
+        notifyInfo(line);
         }
     public static void dd(String tag, String message)
         {
@@ -71,7 +72,7 @@ public class EventLog
         String message = String.format(format, args);
         String line = String.format("%s: %s", header, message);
         logger.info(line);
-        NotificationHelper.info(line);
+        notifyInfo(line);
         }
 
 
@@ -94,19 +95,20 @@ public class EventLog
         String line = formatLine(tag, format, args);
         if (throwable != null)
             {
-            NotificationHelper.error(line);
             logger.error(line, throwable);
-            NotificationHelper.error(String.format("exception: %s: %s", throwable.getClass().getSimpleName(), throwable.getMessage()));
+            //
+            notifyError(line);
+            notifyError(String.format("exception: %s: %s", throwable.getClass().getSimpleName(), throwable.getMessage()));
             logStackFrames(tag, throwable.getStackTrace());
             for (throwable = throwable.getCause(); throwable != null; throwable = throwable.getCause())
                 {
-                NotificationHelper.error(String.format("caused by: %s: %s", throwable.getClass().getSimpleName(), throwable.getMessage()));
+                notifyError(String.format("caused by: %s: %s", throwable.getClass().getSimpleName(), throwable.getMessage()));
                 logStackFrames(tag, throwable.getStackTrace());
                 }
             }
         else
             {
-            NotificationHelper.error(line);
+            notifyError(line);
             logger.error(line);
             }
         }
@@ -129,7 +131,22 @@ public class EventLog
                 }
             frames.append(formatLine(tag, "    at %s", frame.toString()));
             }
-        NotificationHelper.error(frames.toString());
+        notifyError(frames.toString());
+        }
+
+    private static void notifyInfo(String line)
+        {
+        if (DEBUG)
+            {
+            NotificationHelper.info(line);
+            }
+        }
+    private static void notifyError(String line)
+        {
+        if (DEBUG)
+            {
+            NotificationHelper.error(line);
+            }
         }
     }
 

@@ -22,7 +22,7 @@ import java.util.stream.Collectors;
  * our own socket data to do so. Necessary as not all the ADB socket protocol is supported through
  * publicly available function in {@link AndroidDebugBridge}, etc.
  *
- * This is just the easier way to go
+ * This is just the easier way to go.
  */
 @SuppressWarnings("WeakerAccess")
 public class HostAdb

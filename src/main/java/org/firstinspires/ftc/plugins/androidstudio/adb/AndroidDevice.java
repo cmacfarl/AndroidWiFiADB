@@ -293,7 +293,7 @@ public class AndroidDevice extends ReentrantLockOwner
                                 return true;
                                 }
                             else
-                                EventLog.dd(TAG, "%s: is not wifi direct group owner", getDebugDisplayName());
+                                EventLog.dd(TAG, "%s: not pingable at wifi direct group owner", getDebugDisplayName());
                             }
                         else
                             EventLog.dd(TAG, "%s: not pingable at wifi direct group owner", getDebugDisplayName());

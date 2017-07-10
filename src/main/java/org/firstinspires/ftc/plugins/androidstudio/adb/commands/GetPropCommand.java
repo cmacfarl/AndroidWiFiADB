@@ -10,7 +10,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * Created by bob on 2017-07-07.
+ * {@link GetPropCommand} returns the map of all properties available on the device.
  */
 @SuppressWarnings("WeakerAccess")
 public class GetPropCommand extends AdbShellCommand

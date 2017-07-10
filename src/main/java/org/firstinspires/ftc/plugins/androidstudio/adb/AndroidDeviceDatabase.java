@@ -133,21 +133,29 @@ public class AndroidDeviceDatabase
 
     public void loadPersistentState(PersistentStateExternal persistentStateExternal)
         {
-        PersistentState persistentState = PersistentState.from(persistentStateExternal);
         lockDevicesWhile(() ->
             {
-            assert deviceMap.isEmpty();
-            assert openedDeviceMap.isEmpty();
-
-            inetSocketAddressLastConnected = IpUtil.parseInetSocketAddress(persistentState.inetSocketAddressLastConnected);
-            usbSerialNumberLastConnected = persistentState.usbSerialNumberLastConnected;
-
-            for (AndroidDevice.PersistentState androidDeviceData : persistentState.androidDevices)
+            try
                 {
-                deviceMap.put(androidDeviceData.usbSerialNumber, new AndroidDevice(this, androidDeviceData));
-                }
+                PersistentState persistentState = PersistentState.from(persistentStateExternal);
+                deviceMap.clear();
+                openedDeviceMap.clear();
 
-            debugDump();
+                inetSocketAddressLastConnected = IpUtil.parseInetSocketAddress(persistentState.inetSocketAddressLastConnected);
+                usbSerialNumberLastConnected = persistentState.usbSerialNumberLastConnected;
+
+                for (AndroidDevice.PersistentState androidDeviceData : persistentState.androidDevices)
+                    {
+                    deviceMap.put(androidDeviceData.usbSerialNumber, new AndroidDevice(this, androidDeviceData));
+                    }
+                debugDump();
+                }
+            catch (RuntimeException e)
+                {
+                EventLog.ee(TAG, e,"exception in loadPersistentState: starting afresh");
+                // Tolerate errors in reifying (old format?) persistent state
+                loadPersistentState(new PersistentStateExternal());
+                }
             });
         }
 

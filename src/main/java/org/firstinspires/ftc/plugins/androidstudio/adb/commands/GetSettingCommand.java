@@ -5,7 +5,7 @@ import com.android.ddmlib.IDevice;
 import java.util.Locale;
 
 /**
- * Created by bob on 2017-07-07.
+ * {@link GetSettingCommand} retrieves a setting (system, secure, or global) from the device.
  */
 @SuppressWarnings("WeakerAccess")
 public class GetSettingCommand extends AdbShellCommand

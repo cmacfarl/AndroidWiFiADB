@@ -4,7 +4,7 @@ import com.android.ddmlib.MultiLineReceiver;
 import org.firstinspires.ftc.plugins.androidstudio.util.StringUtil;
 
 /**
- * Created by bob on 2017-07-07.
+ * {@link AdbShellCommandResultCollector} is a generic collector of command response lines.
  */
 @SuppressWarnings("WeakerAccess")
 public class AdbShellCommandResultCollector extends MultiLineReceiver
