@@ -34,6 +34,6 @@ public class Configuration
     public static final InetAddress WIFI_DIRECT_GROUP_OWNER_ADDRESS = IpUtil.parseInetAddress("192.168.49.1");
     public static final int ADB_DAEMON_PORT = 5555;
 
-    public static int msAdbTimeoutSlow = 2000;
-    public static int msAdbTimeoutFast = 200;
+    public static int msAdbTimeoutSlow = 4000;
+    public static int msAdbTimeoutFast = 2000;
     }

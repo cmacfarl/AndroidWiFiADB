@@ -127,7 +127,6 @@ public class AndroidDeviceDatabase
                 {
                 result.androidDevices.add(androidDevice.getPersistentState());
                 }
-            EventLog.dd(TAG,"getPersistentState() count=%d", result.androidDevices.size());
             return new PersistentStateExternal(result);
             });
         }
@@ -135,7 +134,6 @@ public class AndroidDeviceDatabase
     public void loadPersistentState(PersistentStateExternal persistentStateExternal)
         {
         PersistentState persistentState = PersistentState.from(persistentStateExternal);
-        EventLog.dd(TAG,"loadPersistentState() count=%d", persistentState.androidDevices.size());
         lockDevicesWhile(() ->
             {
             assert deviceMap.isEmpty();
@@ -312,6 +310,7 @@ public class AndroidDeviceDatabase
             AndroidDeviceHandle handle = openedDeviceMap.get(device.getSerialNumber());
             if (handle != null)
                 {
+                EventLog.dd(TAG, "closing(%s)", device.getSerialNumber());
                 handle.close();
                 openedDeviceMap.remove(device.getSerialNumber());
                 }

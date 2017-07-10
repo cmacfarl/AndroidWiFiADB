@@ -42,5 +42,4 @@ public class AdbShellCommandResultCollector extends MultiLineReceiver
         {
         return commandResult;
         }
-
     }

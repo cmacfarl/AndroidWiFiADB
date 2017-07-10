@@ -283,10 +283,25 @@ public class AndroidDevice extends ReentrantLockOwner
                 {
                 // Can we reach him over WifiDirect? If so, use that
                 boolean tryWifiDirect = lockWhile(() ->
-                    !database.isWifiDirectIPAddressConnected()
-                        && IpUtil.isPingable(Configuration.WIFI_DIRECT_GROUP_OWNER_ADDRESS)
-                        && isWifiDirectGroupOwner()
-                    );
+                    {
+                    if (!database.isWifiDirectIPAddressConnected())
+                        {
+                        if (IpUtil.isPingable(Configuration.WIFI_DIRECT_GROUP_OWNER_ADDRESS))
+                            {
+                            if (isWifiDirectGroupOwner())
+                                {
+                                return true;
+                                }
+                            else
+                                EventLog.dd(TAG, "%s: is not wifi direct group owner", getDebugDisplayName());
+                            }
+                        else
+                            EventLog.dd(TAG, "%s: not pingable at wifi direct group owner", getDebugDisplayName());
+                        }
+                    else
+                        EventLog.dd(TAG, "%s: wifi direct in use", getDebugDisplayName());
+                    return false;
+                    });
 
                 if (tryWifiDirect)
                     {

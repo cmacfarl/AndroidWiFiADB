@@ -253,7 +253,7 @@ public class AndroidDeviceHandle
             }
         catch (ExecutionException e)
             {
-            throw new RuntimeException("exception while retrieving property: " + property, e);
+            throw new RuntimeException("exception while retrieving property: " + property, e.getCause());
             }
         catch (TimeoutException e)
             {
