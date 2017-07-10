@@ -284,7 +284,13 @@ public class AndroidDeviceDatabase
 
         if (result != null)
             {
-            result.getAndroidDevice().refreshTcpipConnectivity();
+            try {
+                result.getAndroidDevice().refreshTcpipConnectivity("open");
+                }
+            catch (InterruptedException e)
+                {
+                Thread.currentThread().interrupt();
+                }
             }
         }
 
@@ -318,13 +324,15 @@ public class AndroidDeviceDatabase
     // TCPIP management
     //----------------------------------------------------------------------------------------------
 
-    protected void refreshTcpipConnectivity()
+    protected boolean refreshTcpipConnectivity(String reason) throws InterruptedException
         {
         Collection<AndroidDevice> devices = lockDevicesWhile(deviceMap::values);
+        boolean allConnected = true;
         for (AndroidDevice androidDevice : devices)
             {
-            androidDevice.refreshTcpipConnectivity();
+            allConnected = androidDevice.refreshTcpipConnectivity(reason) && allConnected;
             }
+        return allConnected;
         }
 
     protected void reconnectLastTcpipConnected()
@@ -402,10 +410,37 @@ public class AndroidDeviceDatabase
 
     protected class NetworkInterfaceListener implements NetworkInterfaceMonitor.Callback
         {
-        @Override public void onNetworkInterfacesChanged()
+        @Override public void onNetworkInterfacesUp()
             {
-            EventLog.dd(TAG, "network interface list changed: refreshing tcpip connectivity");
-            refreshTcpipConnectivity();
+            EventLog.dd(TAG, "more network interfaces: refreshing tcpip connectivity");
+
+            /** Especially when a robot controller network interface is connected to by a desktop
+             * for the very first time, it can take a very long time from when we get notified
+             * that the interface is 'up' to when we can actually reach the robot controller.
+             * Annoying, but true. So, we try a few times. */
+            ThreadPool.getDefault().execute(() ->
+                {
+                try {
+                    if (!refreshTcpipConnectivity("intf up #1"))
+                        {
+                        Thread.sleep(Configuration.msTcpipConnectivityRefreshInterval);
+                        if (!refreshTcpipConnectivity("intf up #2"))
+                            {
+                            Thread.sleep(Configuration.msTcpipConnectivityRefreshInterval);
+                            refreshTcpipConnectivity("intf up #3");
+                            }
+                        }
+                    }
+                catch (InterruptedException e)
+                    {
+                    Thread.currentThread().interrupt();
+                    }
+                });
+            }
+
+        @Override public void onNetworkInterfacesDown()
+            {
+            EventLog.dd(TAG, "fewer network interfaces: ignoring");
             }
         }
 

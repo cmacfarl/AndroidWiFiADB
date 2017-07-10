@@ -2,8 +2,11 @@ package org.firstinspires.ftc.plugins.androidstudio.util;
 
 import java.net.NetworkInterface;
 import java.net.SocketException;
+import java.util.Collection;
 import java.util.Enumeration;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicReference;
@@ -20,14 +23,14 @@ public class NetworkInterfaceMonitor
 
     public interface Callback
         {
-        void onNetworkInterfacesChanged();
+        void onNetworkInterfacesUp();
+        void onNetworkInterfacesDown();
         }
 
     protected final Callback callback;
     protected final int msPollingInterval = 5000;
-    protected final int msSettle = 2000;
     protected final AtomicReference<Thread> thread = new AtomicReference<>(null);
-    protected Map<String, NetworkInterface> existing = new ConcurrentHashMap<>();
+    protected Map<String, NetworkInterface> currentInterfaces = new ConcurrentHashMap<>();
 
     //----------------------------------------------------------------------------------------------
     // Construction
@@ -44,6 +47,7 @@ public class NetworkInterfaceMonitor
 
     public void start()
         {
+        EventLog.dd(this, "start()");
         stop();
         CountDownLatch latch = new CountDownLatch(1);
         Thread thread = new Thread(new Runnable()
@@ -82,22 +86,38 @@ public class NetworkInterfaceMonitor
         Thread thread = this.thread.getAndSet(null);
         if (thread != null)
             {
+            EventLog.dd(this, "stop()");
             thread.interrupt();
             }
         }
 
+    protected <T> Set<T> setDifference(Set<T> left, Collection<T> right)
+        {
+        Set<T> result = new HashSet<>(left);
+        result.removeAll(right);
+        return result;
+        }
+
     protected void poll()
         {
-        Map<String, NetworkInterface> current = getUpInterfaces();
-        if (!current.keySet().equals(existing.keySet()))
-            {
-            // Hack: give the interface a chance to settle a bit
-            try { Thread.currentThread().sleep(msSettle); } catch (InterruptedException e) { Thread.currentThread().interrupt(); }
+        Map<String, NetworkInterface> newInterfaces = getUpInterfaces();
+        Set<String> newSet = newInterfaces.keySet();
+        Set<String> currentSet = currentInterfaces.keySet();
 
-            // Notify our client
-            callback.onNetworkInterfacesChanged();
+        Set<String> newlyUp = setDifference(newSet, currentSet);
+        Set<String> newlyDown = setDifference(currentSet, newSet);
+
+        if (!newlyUp.isEmpty())
+            {
+            callback.onNetworkInterfacesUp();
             }
-        existing = current;
+
+        if (!newlyDown.isEmpty())
+            {
+            callback.onNetworkInterfacesDown();
+            }
+
+        currentInterfaces = newInterfaces;
         }
 
     protected Map<String, NetworkInterface> getUpInterfaces()

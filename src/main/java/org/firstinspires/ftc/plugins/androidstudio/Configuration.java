@@ -36,4 +36,5 @@ public class Configuration
 
     public static int msAdbTimeoutSlow = 4000;
     public static int msAdbTimeoutFast = 2000;
+    public static int msTcpipConnectivityRefreshInterval = 10000;
     }

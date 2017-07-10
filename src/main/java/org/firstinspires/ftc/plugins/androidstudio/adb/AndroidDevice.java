@@ -282,19 +282,29 @@ public class AndroidDevice extends ReentrantLockOwner
     // Commands
     //----------------------------------------------------------------------------------------------
 
+    protected void checkInterrupt() throws InterruptedException
+        {
+        if (Thread.interrupted())
+            {
+            throw new InterruptedException("interrupt in " + TAG);
+            }
+        }
+
     /** Called with the database handles lock NOT held. So: devices can come and go
      * while we're in here. Be careful! */
-    public void refreshTcpipConnectivity()
+    public boolean refreshTcpipConnectivity(String reason) throws InterruptedException
         {
-        boolean needToConnect = lockWhile(() -> isOpen() && !isOpenUsingTcpip());
-        if (needToConnect)
+        boolean tcpConnected = lockWhile(this::isOpenUsingTcpip);
+        if (!tcpConnected)
             {
             // ADB doesn't already have a TCPIP connection for him. We'll try to make one if we can.
             //
-            boolean connected = false;
+            EventLog.dd(TAG, "refreshTcpipConnectivity(%s)", reason);
 
-            if (!connected)
+            if (!tcpConnected)
                 {
+                checkInterrupt();
+
                 // Can we reach him over WifiDirect? If so, use that
                 boolean tryWifiDirect = lockWhile(() ->
                     {
@@ -319,25 +329,31 @@ public class AndroidDevice extends ReentrantLockOwner
 
                 if (tryWifiDirect)
                     {
-                    connected = listenAndConnect(Configuration.WIFI_DIRECT_GROUP_OWNER_ADDRESS, Configuration.ADB_DAEMON_PORT);
+                    checkInterrupt();
+                    tcpConnected = listenAndConnect(Configuration.WIFI_DIRECT_GROUP_OWNER_ADDRESS, Configuration.ADB_DAEMON_PORT);
                     }
                 }
 
-            if (!connected)
+            if (!tcpConnected)
                 {
+                checkInterrupt();
+
                 // Is he on some other (infrastructure) wifi network that we can reach him through?
                 InetAddress inetAddress = getWlanAddress();
                 if (inetAddress != null && IpUtil.isPingable(inetAddress))
                     {
-                    connected = listenAndConnect(inetAddress, Configuration.ADB_DAEMON_PORT);
+                    checkInterrupt();
+                    tcpConnected = listenAndConnect(inetAddress, Configuration.ADB_DAEMON_PORT);
                     }
                 }
 
-            if (!connected)
+            if (!tcpConnected)
                 {
                 EventLog.notify(TAG, "unable to tcpip-connect to %s", getDebugDisplayName());
                 }
             }
+
+        return tcpConnected;
         }
 
     protected boolean listenAndConnect(InetAddress inetAddress, int port)
