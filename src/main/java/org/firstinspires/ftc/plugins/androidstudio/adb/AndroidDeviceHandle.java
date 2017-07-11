@@ -186,7 +186,7 @@ public class AndroidDeviceHandle
             }
         catch (AdbCommunicationException e)
             {
-            EventLog.ee(TAG, e, "isWifiDirectGroupOwner() failed: %s; ignored", getUsbSerialNumber());
+            EventLog.ee(TAG, "isWifiDirectGroupOwner() failed: %s; ignored: %s: %s", getUsbSerialNumber(), e.getMessage(), e.getCause().getMessage());
             return false;
             }
         }
@@ -200,7 +200,7 @@ public class AndroidDeviceHandle
             }
         catch (AdbCommunicationException e)
             {
-            EventLog.ee(TAG, e, "getWifiDirectName() failed: %s; ignored", getUsbSerialNumber());
+            EventLog.ee(TAG, "getWifiDirectName() failed: %s; ignored: %s: %s", getUsbSerialNumber(), e.getMessage(), e.getCause().getMessage());
             return null;
             }
         }

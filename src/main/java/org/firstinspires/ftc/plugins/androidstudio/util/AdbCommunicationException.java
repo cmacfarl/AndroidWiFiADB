@@ -8,10 +8,6 @@ import java.util.Locale;
  */
 public class AdbCommunicationException extends Exception
     {
-    public AdbCommunicationException(String message)
-        {
-        super(message);
-        }
     public AdbCommunicationException(Throwable throwable, String message)
         {
         super(message, throwable);
