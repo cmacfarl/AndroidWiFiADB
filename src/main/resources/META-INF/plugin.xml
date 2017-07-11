@@ -3,7 +3,7 @@
   <id>org.firstinspires.ftc.plugins.androidstudio</id>
   <name>FTC Android Studio plugin</name>
   <version>0.0.53</version>
-  <vendor email="bob@theatkinsons.org" url="http://www.github.com/ftctechnh/ftc_app">
+  <vendor email="ftcteams@firstinspires.org" url="http://www.github.com/ftctechnh/ftc_app">
     First Tech Challenge Technology Team
   </vendor>
 
@@ -20,14 +20,6 @@
   <idea-version since-build="162"/>
 
   <extensions defaultExtensionNs="com.intellij">
-
-    <defaultProjectTypeProvider type="Android"/>
-
-      <toolWindow id="Android WiFi ADB"
-              icon="/icons/androidWiFiADBIcon.png"
-              anchor="right"
-              factoryClass="com.github.pedrovgs.androidwifiadb.window.AndroidWiFiADBWindow">
-      </toolWindow>
 
   </extensions>
 
@@ -47,21 +39,10 @@
   <!-- http://www.jetbrains.org/intellij/sdk/docs/tutorials/action_system/grouping_action.html -->
   <actions>
 
-    <action id="AndroidWiFiADB"
-        class="com.github.pedrovgs.androidwifiadb.action.AndroidWiFiADBAction"
-        text="AndroidWiFiADB"
-        description="Connects your Android devices to your computer over TCP just with one click."
-        icon="/icons/androidWiFiADBIcon.png"
-        project-type="Android"
-        >
-      <add-to-group group-id="MainToolBar" anchor="last"/>
-      <add-to-group group-id="NavBarToolBar" anchor="first"/>
-    </action>
-
-    <action class="org.firstinspires.ftc.plugins.androidstudio.ui.HelloAction" id="FtcSayHello" text="FTC Android Plugin Hello">
+    <!--<action class="org.firstinspires.ftc.plugins.androidstudio.ui.HelloAction" id="FtcSayHello" text="FTC Android Plugin Hello">
       <add-to-group group-id="ToolsMenu"/>
       <add-to-group group-id="WelcomeScreen.QuickStart"/>
-    </action>
+    </action>-->
 
   </actions>
 

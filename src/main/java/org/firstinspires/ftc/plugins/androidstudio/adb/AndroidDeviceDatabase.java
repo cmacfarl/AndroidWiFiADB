@@ -341,7 +341,7 @@ public class AndroidDeviceDatabase
     protected void reconnectLastTcpipConnected()
         {
         InetSocketAddress inetSocketAddress = this.inetSocketAddressLastConnected;
-        EventLog.dd(TAG, "reconnectLastTcpipConnected() addr=%s", inetSocketAddress);
+        EventLog.dd(TAG, "reconnectLastTcpipConnected() addr=%s", IpUtil.toString(inetSocketAddress));
         if (inetSocketAddress != null)
             {
             // 'connect' can take very long time, so use a worker
