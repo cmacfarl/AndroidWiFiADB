@@ -47,12 +47,17 @@ public class IpUtil
 
     public static boolean isPingable(InetAddress inetAddress)
         {
+        EventLog.dd(IpUtil.class, "pinging: %s...", toString(inetAddress));
         try {
             return inetAddress.isReachable(Configuration.msAdbTimeoutFast);
             }
         catch (IOException|RuntimeException e)
             {
             return false;
+            }
+        finally
+            {
+            EventLog.dd(IpUtil.class, "...pinging: %s", toString(inetAddress));
             }
         }
     }

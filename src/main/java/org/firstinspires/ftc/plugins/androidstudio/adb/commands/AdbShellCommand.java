@@ -7,6 +7,7 @@ import com.android.ddmlib.ShellCommandUnresponsiveException;
 import com.android.ddmlib.TimeoutException;
 import org.firstinspires.ftc.plugins.androidstudio.Configuration;
 import org.firstinspires.ftc.plugins.androidstudio.util.AdbCommunicationException;
+import org.firstinspires.ftc.plugins.androidstudio.util.EventLog;
 
 import java.io.IOException;
 import java.util.Locale;
@@ -37,6 +38,7 @@ public abstract class AdbShellCommand
             }
         catch (AdbCommandRejectedException|TimeoutException|ShellCommandUnresponsiveException|IOException e)
             {
+            EventLog.dd(TAG, "command failed(%s): %s", e.getMessage(), command);
             throw new AdbCommunicationException(e, "command failed: %s", command);
             }
         }
